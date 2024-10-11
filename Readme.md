@@ -1,4 +1,4 @@
-# Readme for Detect-T 
+# Readme for Detect-T
 
 > A web app implementation of a proof of concept for fit-back ( clothes size recommendation )
 
