@@ -11,11 +11,23 @@ function App() {
       <BrowserRouter>
         <NavBar />
         <Routes>
-          <Route path="/" element={<h1>Home</h1>} />
+          <Route path="/" element={<Home />} />
           <Route path="/about" element={<About />} />
           <Route path="/prototype" element={<Prototype />} />
         </Routes>
       </BrowserRouter>
+    </>
+  );
+}
+
+function Home() {
+  return (
+    <>
+      <div className="font-mono text-4xl text-center">Home</div>
+      <div className="font-mono text-lg text-center m-[20px] hover:text-xl transition-all duration-300 ease-in-out">
+        I quite do not know what to write here , <br /> everything that needs to
+        be written here is already at the about section
+      </div>
     </>
   );
 }
