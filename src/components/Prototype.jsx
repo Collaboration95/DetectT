@@ -1,16 +1,17 @@
+
 import React, { useState, useCallback, useRef, useEffect } from "react";
-import "@tensorflow/tfjs";
+import "@tensorflow/tfjs"; // Ensure TensorFlow.js is imported
 import {
   WebcamFeed,
   CameraControls,
-  PoseNetModel,
   SkeletonDrawing,
+  PoseNetModel, // Import your updated PoseNetModel component
 } from "./Prototype/index.js";
 
 export default function Prototype() {
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [isPoseDetectionOn, setIsPoseDetectionOn] = useState(false);
-  const [model, setModel] = useState(null);
+  const [detector, setDetector] = useState(null); // Update state to hold the detector
   const [detectionInterval, setDetectionInterval] = useState(100); // ms between detections
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
@@ -28,28 +29,39 @@ export default function Prototype() {
 
   const detectPose = async () => {
     if (
-      model &&
+      detector &&
       webcamRef.current &&
       webcamRef.current.video.readyState === 4
     ) {
       const video = webcamRef.current.video;
-
-      // Get the dimensions of the video
+  
+      // Log video dimensions
       const videoWidth = video.videoWidth;
       const videoHeight = video.videoHeight;
-
-      // Set the video width and height
-      video.width = videoWidth;
-      video.height = videoHeight;
-
+      console.log(`Video dimensions: ${videoWidth}x${videoHeight}`);
+  
+      // Check if video dimensions are valid
+      if (videoWidth === 0 || videoHeight === 0) {
+        console.warn("Video dimensions are zero. Skipping pose detection.");
+        return; // Exit early if dimensions are not valid
+      }
+  
       // Detect pose from the video element
-      const pose = await model.estimateSinglePose(video, {
-        flipHorizontal: false,
-      });
-
-      poseRef.current = pose;
+      try {
+        const poses = await detector.estimatePoses(video, {
+          flipHorizontal: false,
+        });
+        poseRef.current = poses.length > 0 ? poses[0] : null;
+        console.log("Pose detected:", poseRef.current);
+      } catch (error) {
+        console.error("Error during pose detection:", error);
+      }
+    } else {
+      console.warn("Detector is not initialized or webcam is not ready.");
     }
   };
+  
+  
 
   const renderFrame = (time) => {
     if (previousTimeRef.current != undefined) {
@@ -68,6 +80,7 @@ export default function Prototype() {
     requestRef.current = requestAnimationFrame(renderFrame);
   };
 
+
   const drawFrame = () => {
     if (
       webcamRef.current &&
@@ -77,36 +90,37 @@ export default function Prototype() {
       const video = webcamRef.current.video;
       const canvas = canvasRef.current;
       const ctx = canvas.getContext("2d");
-
+  
       // Set canvas dimensions
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-
+  
       // Clear the canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-
+  
       // Draw the mirrored video feed
       ctx.save();
       ctx.scale(-1, 1);
       ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
       ctx.restore();
-
+  
       // Draw the skeleton if pose data is available
       if (poseRef.current) {
         drawSkeleton(poseRef.current, ctx);
       }
     }
   };
-
+  
   const drawSkeleton = (pose, ctx) => {
     const minConfidence = 0.6;
-
+  
+    // Draw keypoints
     pose.keypoints.forEach((keypoint) => {
       if (keypoint.score >= minConfidence) {
         ctx.beginPath();
         ctx.arc(
-          ctx.canvas.width - keypoint.position.x,
-          keypoint.position.y,
+          ctx.canvas.width - keypoint.x,
+          keypoint.y,
           5,
           0,
           2 * Math.PI,
@@ -115,38 +129,39 @@ export default function Prototype() {
         ctx.fill();
       }
     });
-
+  
     // Define connections
     const connections = [
-      ["leftShoulder", "rightShoulder"],
-      ["leftShoulder", "leftElbow"],
-      ["leftElbow", "leftWrist"],
-      ["rightShoulder", "rightElbow"],
-      ["rightElbow", "rightWrist"],
-      ["leftShoulder", "leftHip"],
-      ["rightShoulder", "rightHip"],
-      ["leftHip", "rightHip"],
-      ["leftHip", "leftKnee"],
-      ["leftKnee", "leftAnkle"],
-      ["rightHip", "rightKnee"],
-      ["rightKnee", "rightAnkle"],
+      ["left_shoulder", "right_shoulder"],
+      ["left_shoulder", "left_elbow"],
+      ["left_elbow", "left_wrist"],
+      ["right_shoulder", "right_elbow"],
+      ["right_elbow", "right_wrist"],
+      ["left_shoulder", "left_hip"],
+      ["right_shoulder", "right_hip"],
+      ["left_hip", "right_hip"],
+      ["left_hip", "left_knee"],
+      ["left_knee", "left_ankle"],
+      ["right_hip", "right_knee"],
+      ["right_knee", "right_ankle"],
     ];
-
+  
     // Draw connections
     connections.forEach(([partA, partB]) => {
-      const a = pose.keypoints.find((kp) => kp.part === partA);
-      const b = pose.keypoints.find((kp) => kp.part === partB);
-
-      if (a.score >= minConfidence && b.score >= minConfidence) {
+      const a = pose.keypoints.find((kp) => kp.name === partA); // Change 'part' to 'name'
+      const b = pose.keypoints.find((kp) => kp.name === partB); // Change 'part' to 'name'
+  
+      if (a && b && a.score >= minConfidence && b.score >= minConfidence) {
         ctx.beginPath();
-        ctx.moveTo(ctx.canvas.width - a.position.x, a.position.y);
-        ctx.lineTo(ctx.canvas.width - b.position.x, b.position.y);
+        ctx.moveTo(ctx.canvas.width - a.x, a.y);
+        ctx.lineTo(ctx.canvas.width - b.x, b.y);
         ctx.strokeStyle = "blue";
         ctx.lineWidth = 2;
         ctx.stroke();
       }
     });
   };
+  
 
   useEffect(() => {
     if (isCameraOn && isPoseDetectionOn) {
@@ -159,7 +174,7 @@ export default function Prototype() {
         cancelAnimationFrame(requestRef.current);
       }
     };
-  }, [isCameraOn, isPoseDetectionOn, model, detectionInterval]);
+  }, [isCameraOn, isPoseDetectionOn, detector, detectionInterval]);
 
   const handleIntervalChange = (e) => {
     setDetectionInterval(Number(e.target.value));
@@ -181,9 +196,7 @@ export default function Prototype() {
       {isCameraOn && (
         <>
           <WebcamFeed webcamRef={webcamRef} canvasRef={canvasRef} />
-
-          <PoseNetModel setModel={setModel} />
-
+          <PoseNetModel setDetector={setDetector} /> {/* Update this prop */}
           <SkeletonDrawing
             detectionInterval={detectionInterval}
             handleIntervalChange={handleIntervalChange}

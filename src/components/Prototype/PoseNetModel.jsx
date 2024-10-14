@@ -1,20 +1,18 @@
-import { useEffect, useState } from "react";
-import * as posenet from "@tensorflow-models/posenet";
-import "@tensorflow/tfjs";
+import * as tf from "@tensorflow/tfjs"; // Ensure TensorFlow.js is imported
+import { useEffect } from "react";
+import * as poseDetection from "@tensorflow-models/pose-detection";
 
-const PoseNetModel = ({ setModel }) => {
+const PoseNetModel = ({ setDetector }) => {
   useEffect(() => {
     const loadModel = async () => {
-      const loadedModel = await posenet.load({
-        architecture: "MobileNetV1",
-        outputStride: 16,
-        inputResolution: { width: 640, height: 480 },
-        multiplier: 0.75,
+      await tf.ready(); // Ensure TensorFlow.js is ready
+      const detector = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, {
+        modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING, // Correctly specify the model type
       });
-      setModel(loadedModel);
+      setDetector(detector);
     };
     loadModel();
-  }, [setModel]);
+  }, [setDetector]);
 
   return null;
 };
