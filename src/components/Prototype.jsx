@@ -1,9 +1,11 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
-import Button from "@mui/material/Button";
-import { Camera } from "lucide-react";
-import * as posenet from "@tensorflow-models/posenet";
 import "@tensorflow/tfjs";
-import {WebcamFeed,CameraControls,PoseNetModel} from './Prototype/index.js';
+import {
+  WebcamFeed,
+  CameraControls,
+  PoseNetModel,
+  SkeletonDrawing,
+} from "./Prototype/index.js";
 
 export default function Prototype() {
   const [isCameraOn, setIsCameraOn] = useState(false);
@@ -31,7 +33,7 @@ export default function Prototype() {
       webcamRef.current.video.readyState === 4
     ) {
       const video = webcamRef.current.video;
-      
+
       // Get the dimensions of the video
       const videoWidth = video.videoWidth;
       const videoHeight = video.videoHeight;
@@ -52,7 +54,7 @@ export default function Prototype() {
   const renderFrame = (time) => {
     if (previousTimeRef.current != undefined) {
       const deltaTime = time - previousTimeRef.current;
-      
+
       if (deltaTime > detectionInterval) {
         detectPose();
         previousTimeRef.current = time;
@@ -74,8 +76,8 @@ export default function Prototype() {
     ) {
       const video = webcamRef.current.video;
       const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      
+      const ctx = canvas.getContext("2d");
+
       // Set canvas dimensions
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
@@ -99,42 +101,47 @@ export default function Prototype() {
   const drawSkeleton = (pose, ctx) => {
     const minConfidence = 0.6;
 
-
     pose.keypoints.forEach((keypoint) => {
       if (keypoint.score >= minConfidence) {
         ctx.beginPath();
-        ctx.arc(ctx.canvas.width - keypoint.position.x, keypoint.position.y, 5, 0, 2 * Math.PI);
-        ctx.fillStyle = 'red';
+        ctx.arc(
+          ctx.canvas.width - keypoint.position.x,
+          keypoint.position.y,
+          5,
+          0,
+          2 * Math.PI,
+        );
+        ctx.fillStyle = "red";
         ctx.fill();
       }
     });
 
     // Define connections
     const connections = [
-      ['leftShoulder', 'rightShoulder'],
-      ['leftShoulder', 'leftElbow'],
-      ['leftElbow', 'leftWrist'],
-      ['rightShoulder', 'rightElbow'],
-      ['rightElbow', 'rightWrist'],
-      ['leftShoulder', 'leftHip'],
-      ['rightShoulder', 'rightHip'],
-      ['leftHip', 'rightHip'],
-      ['leftHip', 'leftKnee'],
-      ['leftKnee', 'leftAnkle'],
-      ['rightHip', 'rightKnee'],
-      ['rightKnee', 'rightAnkle']
+      ["leftShoulder", "rightShoulder"],
+      ["leftShoulder", "leftElbow"],
+      ["leftElbow", "leftWrist"],
+      ["rightShoulder", "rightElbow"],
+      ["rightElbow", "rightWrist"],
+      ["leftShoulder", "leftHip"],
+      ["rightShoulder", "rightHip"],
+      ["leftHip", "rightHip"],
+      ["leftHip", "leftKnee"],
+      ["leftKnee", "leftAnkle"],
+      ["rightHip", "rightKnee"],
+      ["rightKnee", "rightAnkle"],
     ];
 
     // Draw connections
     connections.forEach(([partA, partB]) => {
-      const a = pose.keypoints.find(kp => kp.part === partA);
-      const b = pose.keypoints.find(kp => kp.part === partB);
+      const a = pose.keypoints.find((kp) => kp.part === partA);
+      const b = pose.keypoints.find((kp) => kp.part === partB);
 
       if (a.score >= minConfidence && b.score >= minConfidence) {
         ctx.beginPath();
         ctx.moveTo(ctx.canvas.width - a.position.x, a.position.y);
         ctx.lineTo(ctx.canvas.width - b.position.x, b.position.y);
-        ctx.strokeStyle = 'blue';
+        ctx.strokeStyle = "blue";
         ctx.lineWidth = 2;
         ctx.stroke();
       }
@@ -163,6 +170,7 @@ export default function Prototype() {
       <h1 className="font-mono text-3xl text-center mt-2 hover:text-red-900 transition-all duration-200 ease-linear">
         Prototype
       </h1>
+
       <CameraControls
         isCameraOn={isCameraOn}
         toggleCamera={toggleCamera}
@@ -175,19 +183,11 @@ export default function Prototype() {
           <WebcamFeed webcamRef={webcamRef} canvasRef={canvasRef} />
 
           <PoseNetModel setModel={setModel} />
-          
-          <div className="mt-4">
-            <label htmlFor="interval">Detection Interval (ms): </label>
-            <input
-              type="number"
-              id="interval"
-              value={detectionInterval}
-              onChange={handleIntervalChange}
-              min="16"
-              max="1000"
-              step="16"
-            />
-          </div>
+
+          <SkeletonDrawing
+            detectionInterval={detectionInterval}
+            handleIntervalChange={handleIntervalChange}
+          />
         </>
       )}
     </div>
