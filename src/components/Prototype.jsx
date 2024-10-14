@@ -1,9 +1,9 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import Button from "@mui/material/Button";
-import Webcam from "react-webcam";
 import { Camera } from "lucide-react";
 import * as posenet from "@tensorflow-models/posenet";
 import "@tensorflow/tfjs";
+import {WebcamFeed,CameraControls} from './Prototype/index.js';
 
 export default function Prototype() {
   const [isCameraOn, setIsCameraOn] = useState(false);
@@ -177,54 +177,17 @@ export default function Prototype() {
       <h1 className="font-mono text-3xl text-center mt-2 hover:text-red-900 transition-all duration-200 ease-linear">
         Prototype
       </h1>
-      <div className="mt-4">
-        <Button
-          variant="default"
-          onClick={toggleCamera}
-          className="flex items-center"
-        >
-          <Camera className="mr-2 h-4 w-4" />
-          {isCameraOn ? "Turn Off Camera" : "Launch Camera"}
-        </Button>
-
-        {isCameraOn && (
-          <div className="mt-4">
-            <Button
-              variant="default"
-              onClick={togglePoseDetection}
-              className="flex items-center"
-            >
-              {isPoseDetectionOn ? "Stop Pose Detection" : "Start Pose Detection"}
-            </Button>
-          </div>
-        )}
-      </div>
+      <CameraControls
+        isCameraOn={isCameraOn}
+        toggleCamera={toggleCamera}
+        isPoseDetectionOn={isPoseDetectionOn}
+        togglePoseDetection={togglePoseDetection}
+      />
 
       {isCameraOn && (
         <>
-          <div className="mt-4 flex justify-around w-full">
-            <div>
-              <h2 className="text-center mb-2">Original Feed</h2>
-              <Webcam
-                audio={false}
-                ref={webcamRef}
-                screenshotFormat="image/jpeg"
-                videoConstraints={{
-                  width: 640,
-                  height: 480,
-                  facingMode: "user", // Using user camera
-                }}
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <div>
-              <h2 className="text-center mb-2">Mirrored Feed with Skeleton</h2>
-              <canvas
-                ref={canvasRef}
-                className="w-full h-full object-cover"
-              />
-            </div>
-          </div>
+          <WebcamFeed webcamRef={webcamRef} canvasRef={canvasRef} />
+          
           <div className="mt-4">
             <label htmlFor="interval">Detection Interval (ms): </label>
             <input
