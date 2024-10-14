@@ -1,4 +1,3 @@
-import { Web } from '@mui/icons-material';
 import React, { useRef } from 'react';
 import Webcam from "react-webcam";
 

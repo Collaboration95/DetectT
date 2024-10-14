@@ -3,7 +3,7 @@ import Button from "@mui/material/Button";
 import { Camera } from "lucide-react";
 import * as posenet from "@tensorflow-models/posenet";
 import "@tensorflow/tfjs";
-import {WebcamFeed,CameraControls} from './Prototype/index.js';
+import {WebcamFeed,CameraControls,PoseNetModel} from './Prototype/index.js';
 
 export default function Prototype() {
   const [isCameraOn, setIsCameraOn] = useState(false);
@@ -22,20 +22,6 @@ export default function Prototype() {
 
   const togglePoseDetection = useCallback(() => {
     setIsPoseDetectionOn((prev) => !prev);
-  }, []);
-
-  useEffect(() => {
-    const loadModel = async () => {
-      const loadedModel = await posenet.load({
-        architecture: 'MobileNetV1',
-        outputStride: 16,
-        inputResolution: { width: 640, height: 480 },
-        multiplier: 0.75
-      });
-      console.log('PoseNet model loaded:', loadedModel);
-      setModel(loadedModel);
-    };
-    loadModel();
   }, []);
 
   const detectPose = async () => {
@@ -187,6 +173,8 @@ export default function Prototype() {
       {isCameraOn && (
         <>
           <WebcamFeed webcamRef={webcamRef} canvasRef={canvasRef} />
+
+          <PoseNetModel setModel={setModel} />
           
           <div className="mt-4">
             <label htmlFor="interval">Detection Interval (ms): </label>
