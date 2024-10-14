@@ -8,8 +8,8 @@
 
 ### Things to Do :
 
-- Use a better model (movenet ?)
-- Use pose-detection library instead of poseNet library
+- [x] Use a better model (movenet ?)  
+- [x] Use pose-detection library instead of poseNet library 
 - Write code to get output from skeleton detection model to get a boolean value if the upper body is in frame
 - Write UI to indicate that skeleton detection model is in frame
 - Try to determine where in the pipeline this would go
