@@ -18,3 +18,4 @@ const SkeletonDrawing = ({ detectionInterval, handleIntervalChange }) => {
 };
 
 export default SkeletonDrawing;
+
