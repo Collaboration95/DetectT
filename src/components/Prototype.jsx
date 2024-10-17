@@ -8,6 +8,24 @@ import {
   PoseNetModel, // Import your updated PoseNetModel component
 } from "./Prototype/index.js";
 
+
+const ExtractPosition = (pose) => {
+
+  const importantPoints =['left_shoudler', 'right_shoulder', 'left_hip', 'right_hip',"nose"]
+  const filteredKeypoints = pose.keypoints.filter((keypoint) =>
+    importantPoints.includes(keypoint.name)
+  );
+
+  const importantPose = {
+    keypoints: filteredKeypoints,
+    score: pose.score,
+  };
+  console.log("extracted pose info is " , importantPose)
+
+
+
+}
+
 export default function Prototype() {
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [isPoseDetectionOn, setIsPoseDetectionOn] = useState(false);
@@ -38,7 +56,6 @@ export default function Prototype() {
       // Log video dimensions
       const videoWidth = video.videoWidth;
       const videoHeight = video.videoHeight;
-      console.log(`Video dimensions: ${videoWidth}x${videoHeight}`);
   
       // Check if video dimensions are valid
       if (videoWidth === 0 || videoHeight === 0) {
@@ -52,8 +69,11 @@ export default function Prototype() {
           flipHorizontal: false,
         });
         poseRef.current = poses.length > 0 ? poses[0] : null;
-        console.log("Pose detected:", poseRef.current);
-      } catch (error) {
+        // console.log("Pose detected:", poseRef.current); // enable for debugging 
+
+        ExtractPosition(poseRef.current);
+
+      } catch (error) {x
         console.error("Error during pose detection:", error);
       }
     } else {
@@ -112,24 +132,50 @@ export default function Prototype() {
   };
   
   const drawSkeleton = (pose, ctx) => {
-    const minConfidence = 0.6;
-  
+      const minConfidence = 0.6;
+    
     // Draw keypoints
-    pose.keypoints.forEach((keypoint) => {
-      if (keypoint.score >= minConfidence) {
-        ctx.beginPath();
-        ctx.arc(
-          ctx.canvas.width - keypoint.x,
-          keypoint.y,
-          5,
-          0,
-          2 * Math.PI,
-        );
-        ctx.fillStyle = "red";
-        ctx.fill();
-      }
-    });
-  
+    // pose.keypoints.forEach((keypoint) => {
+    //   if (keypoint.score >= minConfidence) {
+    //     ctx.beginPath();
+    //     ctx.arc(
+    //       ctx.canvas.width - keypoint.x,
+    //       keypoint.y,
+    //       5,
+    //       0,
+    //       2 * Math.PI,
+    //     );
+    //     ctx.fillStyle = "red";
+    //     ctx.fill();
+    //   }
+    // });
+
+    // ctx.beginPath();
+    // ctx.arc(ctx.canvas.width-pose.keypoints[1].x, 10, 5, 0, 2 * Math.PI);
+    // ctx.fillStyle = "red"
+    // ctx.fill();
+
+    const midPointShoulderX =(pose.keypoints.find((kp) => kp.name === "left_shoulder").x + pose.keypoints.find((kp) => kp.name === "right_shoulder").x) / 2
+    const midPointShoulderY =(pose.keypoints.find((kp) => kp.name === "left_shoulder").y + pose.keypoints.find((kp) => kp.name === "right_shoulder").y) / 2
+    const midPointHipX =(pose.keypoints.find((kp) => kp.name === "left_hip").x + pose.keypoints.find((kp) => kp.name === "right_hip").x) / 2
+    const midPointHipY =(pose.keypoints.find((kp) => kp.name === "left_hip").y + pose.keypoints.find((kp) => kp.name === "right_hip").y) / 2
+    ctx.beginPath();
+    ctx.arc(ctx.canvas.width-midPointShoulderX, midPointShoulderY, 5, 0, 2 * Math.PI);
+    ctx.fillStyle = "green"
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(ctx.canvas.width-midPointHipX, midPointHipY, 5, 0, 2 * Math.PI);
+    ctx.fillStyle = "blue"
+    ctx.fill();
+
+    // Connect the midpoints of the shoulders and hips
+    ctx.beginPath();
+    ctx.moveTo(ctx.canvas.width - midPointShoulderX, midPointShoulderY);
+    ctx.lineTo(ctx.canvas.width - midPointHipX, midPointHipY);
+    ctx.strokeStyle = "red";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
     // Define connections
     const connections = [
       ["left_shoulder", "right_shoulder"],
@@ -147,20 +193,22 @@ export default function Prototype() {
     ];
   
     // Draw connections
-    connections.forEach(([partA, partB]) => {
-      const a = pose.keypoints.find((kp) => kp.name === partA); // Change 'part' to 'name'
-      const b = pose.keypoints.find((kp) => kp.name === partB); // Change 'part' to 'name'
+    // connections.forEach(([partA, partB]) => {
+    //   const a = pose.keypoints.find((kp) => kp.name === partA); // Change 'part' to 'name'
+    //   const b = pose.keypoints.find((kp) => kp.name === partB); // Change 'part' to 'name'
   
-      if (a && b && a.score >= minConfidence && b.score >= minConfidence) {
-        ctx.beginPath();
-        ctx.moveTo(ctx.canvas.width - a.x, a.y);
-        ctx.lineTo(ctx.canvas.width - b.x, b.y);
-        ctx.strokeStyle = "blue";
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      }
-    });
+    //   if (a && b && a.score >= minConfidence && b.score >= minConfidence) {
+    //     ctx.beginPath();
+    //     ctx.moveTo(ctx.canvas.width - a.x, a.y);
+    //     ctx.lineTo(ctx.canvas.width - b.x, b.y);
+    //     ctx.strokeStyle = "blue";
+    //     ctx.lineWidth = 2;
+    //     ctx.stroke();
+    //   }
+    // });
   };
+
+  
   
 
   useEffect(() => {

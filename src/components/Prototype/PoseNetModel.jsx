@@ -5,9 +5,10 @@ import * as poseDetection from "@tensorflow-models/pose-detection";
 const PoseNetModel = ({ setDetector }) => {
   useEffect(() => {
     const loadModel = async () => {
-      await tf.ready(); // Ensure TensorFlow.js is ready
+      await tf.ready(); // tf.ready() does not seem to work for new model , need to find a new way to wait for model loading 
+      
       const detector = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, {
-        modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING, // Correctly specify the model type
+        modelType: poseDetection.movenet.modelType.SINGLEPOSE_THUNDER, // Correctly specify the model type
       });
       setDetector(detector);
     };
