@@ -6,6 +6,11 @@ import Box from "@mui/material/Box";
 import { Link as RouterLink } from "react-router-dom";
 
 const Navbar = () => {
+
+  const generateTimestampLink = () => {
+    const sessionid = Math.floor(Date.now() / 1000); // Generate UNIX timestamp
+    return `/shopifyRedirect/${sessionid}`;
+  };
   return (
     <AppBar
       position="static"
@@ -26,8 +31,8 @@ const Navbar = () => {
           <Button component={RouterLink} to="/prototype" color="inherit">
             Prototype
           </Button>
-          <Button component={RouterLink} to="/about" color="inherit">
-            About
+          <Button component={RouterLink} to={generateTimestampLink()} color="inherit">
+            TriggerWorkflow
           </Button>
         </Box>
       </Toolbar>

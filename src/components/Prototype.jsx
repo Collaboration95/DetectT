@@ -206,8 +206,7 @@ export default function Prototype() {
     // });
   };
 
-  
-  
+
 
   useEffect(() => {
     if (isCameraOn && isPoseDetectionOn) {
