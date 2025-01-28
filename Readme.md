@@ -13,3 +13,7 @@
 - Write code to get output from skeleton detection model to get a boolean value if the upper body is in frame
 - Write UI to indicate that skeleton detection model is in frame
 - Try to determine where in the pipeline this would go
+
+### Setup : 
+
+Navigate to root repositiory and run `npm run dev`

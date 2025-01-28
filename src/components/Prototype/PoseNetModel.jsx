@@ -2,6 +2,8 @@ import * as tf from "@tensorflow/tfjs"; // Ensure TensorFlow.js is imported
 import { useEffect } from "react";
 import * as poseDetection from "@tensorflow-models/pose-detection";
 
+
+// try using blazepose3d model to 
 const PoseNetModel = ({ setDetector }) => {
   useEffect(() => {
     const loadModel = async () => {

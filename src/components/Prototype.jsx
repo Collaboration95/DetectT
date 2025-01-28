@@ -5,7 +5,7 @@ import {
   WebcamFeed,
   CameraControls,
   SkeletonDrawing,
-  PoseNetModel, // Import your updated PoseNetModel component
+  PoseNetModel, 
 } from "./Prototype/index.js";
 
 
@@ -21,8 +21,6 @@ const ExtractPosition = (pose) => {
     score: pose.score,
   };
   console.log("extracted pose info is " , importantPose)
-
-
 
 }
 
@@ -254,3 +252,4 @@ export default function Prototype() {
     </div>
   );
 }
+
