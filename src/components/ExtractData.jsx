@@ -37,6 +37,7 @@ export default function ExtractData() {
 
   const toggleCamera = useCallback(() => {
     setIsCameraOn((prev) => !prev);
+    togglePoseDetection();
   }, []);
 
   const togglePoseDetection = useCallback(() => {
@@ -191,19 +192,19 @@ export default function ExtractData() {
     ];
   
     // Draw connections
-    // connections.forEach(([partA, partB]) => {
-    //   const a = pose.keypoints.find((kp) => kp.name === partA); // Change 'part' to 'name'
-    //   const b = pose.keypoints.find((kp) => kp.name === partB); // Change 'part' to 'name'
+    connections.forEach(([partA, partB]) => {
+      const a = pose.keypoints.find((kp) => kp.name === partA); 
+      const b = pose.keypoints.find((kp) => kp.name === partB);
   
-    //   if (a && b && a.score >= minConfidence && b.score >= minConfidence) {
-    //     ctx.beginPath();
-    //     ctx.moveTo(ctx.canvas.width - a.x, a.y);
-    //     ctx.lineTo(ctx.canvas.width - b.x, b.y);
-    //     ctx.strokeStyle = "blue";
-    //     ctx.lineWidth = 2;
-    //     ctx.stroke();
-    //   }
-    // });
+      if (a && b && a.score >= minConfidence && b.score >= minConfidence) {
+        ctx.beginPath();
+        ctx.moveTo(ctx.canvas.width - a.x, a.y);
+        ctx.lineTo(ctx.canvas.width - b.x, b.y);
+        ctx.strokeStyle = "blue";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    });
   };
 
 
@@ -228,7 +229,7 @@ export default function ExtractData() {
   return (
     <div className="flex flex-col items-center mt-4">
       <h1 className="font-mono text-3xl text-center mt-2 hover:text-red-900 transition-all duration-200 ease-linear">
-        Prototype
+        ExtractData
       </h1>
 
       <CameraControls
