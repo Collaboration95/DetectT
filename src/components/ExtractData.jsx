@@ -1,17 +1,17 @@
-
 import React, { useState, useCallback, useRef, useEffect } from "react";
+import Button from "@mui/material/Button";
+import { Camera } from "lucide-react";
 import "@tensorflow/tfjs"; // Ensure TensorFlow.js is imported
-import {
-  WebcamFeed,
-  CameraControls,
-  SkeletonDrawing,
-  PoseNetModel, 
-} from "./Prototype/index.js";
-
+import { WebcamFeed,  PoseNetModel } from "./ExtractData/index.js";
 
 const ExtractPosition = (pose) => {
-
-  const importantPoints =['left_shoudler', 'right_shoulder', 'left_hip', 'right_hip',"nose"]
+  const importantPoints = [
+    "left_shoudler",
+    "right_shoulder",
+    "left_hip",
+    "right_hip",
+    "nose",
+  ];
   const filteredKeypoints = pose.keypoints.filter((keypoint) =>
     importantPoints.includes(keypoint.name)
   );
@@ -20,15 +20,15 @@ const ExtractPosition = (pose) => {
     keypoints: filteredKeypoints,
     score: pose.score,
   };
-  console.log("extracted pose info is " , importantPose)
-
-}
+  console.log("extracted pose info is ", importantPose);
+};
 
 export default function ExtractData() {
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [isPoseDetectionOn, setIsPoseDetectionOn] = useState(false);
   const [detector, setDetector] = useState(null); // Update state to hold the detector
-  const [detectionInterval, setDetectionInterval] = useState(100); // ms between detections
+  // const [detectionInterval, setDetectionInterval] = useState(100); // ms between detections
+  const detectionInterval = 100; // ms between detections
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
   const requestRef = useRef(null);
@@ -51,35 +51,35 @@ export default function ExtractData() {
       webcamRef.current.video.readyState === 4
     ) {
       const video = webcamRef.current.video;
-  
+
       // Log video dimensions
       const videoWidth = video.videoWidth;
       const videoHeight = video.videoHeight;
-  
+
       // Check if video dimensions are valid
       if (videoWidth === 0 || videoHeight === 0) {
         console.warn("Video dimensions are zero. Skipping pose detection.");
         return; // Exit early if dimensions are not valid
       }
-  
+
       // Detect pose from the video element
       try {
         const poses = await detector.estimatePoses(video, {
           flipHorizontal: false,
         });
         poseRef.current = poses.length > 0 ? poses[0] : null;
-        // console.log("Pose detected:", poseRef.current); // enable for debugging 
+        // console.log("Pose detected:", poseRef.current); // enable for debugging
 
         ExtractPosition(poseRef.current);
+      } catch (error) {
 
-      } catch (error) {x
         console.error("Error during pose detection:", error);
       }
     } else {
       console.warn("Detector is not initialized or webcam is not ready.");
     }
   };
-  
+
   
 
   const renderFrame = (time) => {
@@ -99,7 +99,6 @@ export default function ExtractData() {
     requestRef.current = requestAnimationFrame(renderFrame);
   };
 
-
   const drawFrame = () => {
     if (
       webcamRef.current &&
@@ -109,30 +108,30 @@ export default function ExtractData() {
       const video = webcamRef.current.video;
       const canvas = canvasRef.current;
       const ctx = canvas.getContext("2d");
-  
+
       // Set canvas dimensions
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-  
+
       // Clear the canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-  
+
       // Draw the mirrored video feed
       ctx.save();
       ctx.scale(-1, 1);
       ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
       ctx.restore();
-  
+
       // Draw the skeleton if pose data is available
       if (poseRef.current) {
         drawSkeleton(poseRef.current, ctx);
       }
     }
   };
-  
+
   const drawSkeleton = (pose, ctx) => {
-      const minConfidence = 0.6;
-    
+    const minConfidence = 0.6;
+
     // Draw keypoints
     // pose.keypoints.forEach((keypoint) => {
     //   if (keypoint.score >= minConfidence) {
@@ -154,17 +153,35 @@ export default function ExtractData() {
     // ctx.fillStyle = "red"
     // ctx.fill();
 
-    const midPointShoulderX =(pose.keypoints.find((kp) => kp.name === "left_shoulder").x + pose.keypoints.find((kp) => kp.name === "right_shoulder").x) / 2
-    const midPointShoulderY =(pose.keypoints.find((kp) => kp.name === "left_shoulder").y + pose.keypoints.find((kp) => kp.name === "right_shoulder").y) / 2
-    const midPointHipX =(pose.keypoints.find((kp) => kp.name === "left_hip").x + pose.keypoints.find((kp) => kp.name === "right_hip").x) / 2
-    const midPointHipY =(pose.keypoints.find((kp) => kp.name === "left_hip").y + pose.keypoints.find((kp) => kp.name === "right_hip").y) / 2
+    const midPointShoulderX =
+      (pose.keypoints.find((kp) => kp.name === "left_shoulder").x +
+        pose.keypoints.find((kp) => kp.name === "right_shoulder").x) /
+      2;
+    const midPointShoulderY =
+      (pose.keypoints.find((kp) => kp.name === "left_shoulder").y +
+        pose.keypoints.find((kp) => kp.name === "right_shoulder").y) /
+      2;
+    const midPointHipX =
+      (pose.keypoints.find((kp) => kp.name === "left_hip").x +
+        pose.keypoints.find((kp) => kp.name === "right_hip").x) /
+      2;
+    const midPointHipY =
+      (pose.keypoints.find((kp) => kp.name === "left_hip").y +
+        pose.keypoints.find((kp) => kp.name === "right_hip").y) /
+      2;
     ctx.beginPath();
-    ctx.arc(ctx.canvas.width-midPointShoulderX, midPointShoulderY, 5, 0, 2 * Math.PI);
-    ctx.fillStyle = "green"
+    ctx.arc(
+      ctx.canvas.width - midPointShoulderX,
+      midPointShoulderY,
+      5,
+      0,
+      2 * Math.PI
+    );
+    ctx.fillStyle = "green";
     ctx.fill();
     ctx.beginPath();
-    ctx.arc(ctx.canvas.width-midPointHipX, midPointHipY, 5, 0, 2 * Math.PI);
-    ctx.fillStyle = "blue"
+    ctx.arc(ctx.canvas.width - midPointHipX, midPointHipY, 5, 0, 2 * Math.PI);
+    ctx.fillStyle = "blue";
     ctx.fill();
 
     // Connect the midpoints of the shoulders and hips
@@ -190,12 +207,12 @@ export default function ExtractData() {
       ["right_hip", "right_knee"],
       ["right_knee", "right_ankle"],
     ];
-  
+
     // Draw connections
     connections.forEach(([partA, partB]) => {
-      const a = pose.keypoints.find((kp) => kp.name === partA); 
+      const a = pose.keypoints.find((kp) => kp.name === partA);
       const b = pose.keypoints.find((kp) => kp.name === partB);
-  
+
       if (a && b && a.score >= minConfidence && b.score >= minConfidence) {
         ctx.beginPath();
         ctx.moveTo(ctx.canvas.width - a.x, a.y);
@@ -206,8 +223,6 @@ export default function ExtractData() {
       }
     });
   };
-
-
 
   useEffect(() => {
     if (isCameraOn && isPoseDetectionOn) {
@@ -220,36 +235,30 @@ export default function ExtractData() {
         cancelAnimationFrame(requestRef.current);
       }
     };
-  }, [isCameraOn, isPoseDetectionOn, detector, detectionInterval]);
-
-  const handleIntervalChange = (e) => {
-    setDetectionInterval(Number(e.target.value));
-  };
+  }, [isCameraOn, isPoseDetectionOn, detector]);
 
   return (
     <div className="flex flex-col items-center mt-4">
       <h1 className="font-mono text-3xl text-center mt-2 hover:text-red-900 transition-all duration-200 ease-linear">
         ExtractData
       </h1>
-
-      <CameraControls
-        isCameraOn={isCameraOn}
-        toggleCamera={toggleCamera}
-        isPoseDetectionOn={isPoseDetectionOn}
-        togglePoseDetection={togglePoseDetection}
-      />
+      <div className="mt-4">
+        <Button
+          variant="default"
+          onClick={toggleCamera}
+          className="flex items-center"
+        >
+          <Camera className="mr-2 h-4 w-4" />
+          {isCameraOn ? "Stop Data Extraction" : "Launch Data Extraction"}
+        </Button>
+      </div>
 
       {isCameraOn && (
         <>
           <WebcamFeed webcamRef={webcamRef} canvasRef={canvasRef} />
           <PoseNetModel setDetector={setDetector} /> {/* Update this prop */}
-          <SkeletonDrawing
-            detectionInterval={detectionInterval}
-            handleIntervalChange={handleIntervalChange}
-          />
         </>
       )}
     </div>
   );
 }
-

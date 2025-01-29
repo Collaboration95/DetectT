@@ -13,7 +13,7 @@ const CameraControls = ({
       className="flex items-center"
     >
       <Camera className="mr-2 h-4 w-4" />
-      {isCameraOn ? "Turn Off Camera" : "Launch Camera"}
+      {isCameraOn ? "Stop Data Extraction" : "Launch Data Extraction"}
     </Button>    
   </div>
 );
