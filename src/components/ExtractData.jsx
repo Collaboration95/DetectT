@@ -29,6 +29,7 @@ export default function ExtractData() {
   const [detector, setDetector] = useState(null); // Update state to hold the detector
   // const [detectionInterval, setDetectionInterval] = useState(100); // ms between detections
   const detectionInterval = 100; // ms between detections
+  const [showOverlay, setShowOverlay] = useState(false);
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
   const requestRef = useRef(null);
@@ -43,6 +44,12 @@ export default function ExtractData() {
   const togglePoseDetection = useCallback(() => {
     setIsPoseDetectionOn((prev) => !prev);
   }, []);
+
+  // trying to display overlay 
+  const displayOverlay  = useCallback(() => {
+    setShowOverlay((prev) => !prev);
+  }, []);
+
 
   const detectPose = async () => {
     if (
@@ -126,6 +133,17 @@ export default function ExtractData() {
       if (poseRef.current) {
         drawSkeleton(poseRef.current, ctx);
       }
+      if (showOverlay) {
+        // Grey overlay
+        ctx.fillStyle = "rgba(0, 0, 0, 0.5)"; // Semi-transparent black
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Text
+        ctx.font = "30px Arial";
+        ctx.fillStyle = "white";
+        ctx.textAlign = "center";
+        ctx.fillText("Hi, how are you?", canvas.width / 2, canvas.height / 2);
+      }
     }
   };
 
@@ -133,25 +151,25 @@ export default function ExtractData() {
     const minConfidence = 0.6;
 
     // Draw keypoints
-    // pose.keypoints.forEach((keypoint) => {
-    //   if (keypoint.score >= minConfidence) {
-    //     ctx.beginPath();
-    //     ctx.arc(
-    //       ctx.canvas.width - keypoint.x,
-    //       keypoint.y,
-    //       5,
-    //       0,
-    //       2 * Math.PI,
-    //     );
-    //     ctx.fillStyle = "red";
-    //     ctx.fill();
-    //   }
-    // });
+    pose.keypoints.forEach((keypoint) => {
+      if (keypoint.score >= minConfidence) {
+        ctx.beginPath();
+        ctx.arc(
+          ctx.canvas.width - keypoint.x,
+          keypoint.y,
+          5,
+          0,
+          2 * Math.PI,
+        );
+        ctx.fillStyle = "red";
+        ctx.fill();
+      }
+    });
 
-    // ctx.beginPath();
-    // ctx.arc(ctx.canvas.width-pose.keypoints[1].x, 10, 5, 0, 2 * Math.PI);
-    // ctx.fillStyle = "red"
-    // ctx.fill();
+    ctx.beginPath();
+    ctx.arc(ctx.canvas.width-pose.keypoints[1].x, 10, 5, 0, 2 * Math.PI);
+    ctx.fillStyle = "red"
+    ctx.fill();
 
     const midPointShoulderX =
       (pose.keypoints.find((kp) => kp.name === "left_shoulder").x +
