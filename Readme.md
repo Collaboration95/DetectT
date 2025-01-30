@@ -6,6 +6,7 @@
 
 ![Setting up DetectT](https://github.com/Collaboration95/DetectT/blob/main/images/posenet-setup.png?raw=true)
 
+
 ### Things to Do :
 
 - [x] Use a better model (movenet ?)  
@@ -17,3 +18,10 @@
 ### Setup : 
 
 Navigate to root repositiory and run `npm run dev`
+To view on mobile over https connection , run `npm run host` instead 
+
+### Steps to Run:
+Install npm 
+clone repo / download as .zip
+navigate to root directory install npm packages via `npm install` or `npm install --force` ( latter not recommended)
+After installation run Setup commands ( Open using chrome / firefox browsers)
