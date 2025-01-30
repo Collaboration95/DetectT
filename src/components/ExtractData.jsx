@@ -18,6 +18,7 @@ const ExtractPosition = (pose) => {
     "right_hip",
     "nose",
   ];
+
   const filteredKeypoints = pose.keypoints.filter((keypoint) =>
     importantPoints.includes(keypoint.name)
   );
@@ -31,7 +32,7 @@ const ExtractPosition = (pose) => {
 
 export default function ExtractData() {
   const [isCameraOn, setIsCameraOn] = useState(false);
-  const [isPoseDetectionOn, setIsPoseDetectionOn] = useState(false);
+
   const [detector, setDetector] = useState(null); // Update state to hold the detector
   // const [detectionInterval, setDetectionInterval] = useState(100); // ms between detections
   const detectionInterval = 100; // ms between detections
@@ -48,16 +49,11 @@ export default function ExtractData() {
    */
   const toggleCamera = useCallback(() => {
     setIsCameraOn((prev) => !prev);
-    togglePoseDetection();
   }, []);
 
   /**
    * Toggles pose detection on or off.
    */
-
-  const togglePoseDetection = useCallback(() => {
-    setIsPoseDetectionOn((prev) => !prev);
-  }, []);
 
   /**
    * Detects human poses using the PoseNet model.
@@ -246,17 +242,9 @@ export default function ExtractData() {
       }
     });
   };
-  useEffect(() => {
-    if (isCameraOn) {
-      const timer = setTimeout(() => {
-        setShowOverlay(true);
-      }, 5000); // Show overlay after 5 seconds
-      return () => clearTimeout(timer);
-    }
-  }, [isCameraOn]);
 
   useEffect(() => {
-    if (isCameraOn && isPoseDetectionOn) {
+    if (isCameraOn) {
       requestRef.current = requestAnimationFrame(renderFrame);
     } else if (requestRef.current) {
       cancelAnimationFrame(requestRef.current);
@@ -266,7 +254,7 @@ export default function ExtractData() {
         cancelAnimationFrame(requestRef.current);
       }
     };
-  }, [isCameraOn, isPoseDetectionOn, detector]);
+  }, [isCameraOn, detector]);
 
   return (
     <div className="flex flex-col items-center mt-4">
