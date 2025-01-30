@@ -10,9 +10,9 @@ import { WebcamFeed, PoseNetModel } from "./ExtractData/index.js";
  * @param {Object} pose - The detected pose object containing keypoints.
  */
 
-const ExtractPosition = (pose) => {
+const PrintPosition = (pose, ctx) => {
   const importantPoints = [
-    "left_shoudler",
+    "left_shoulder",
     "right_shoulder",
     "left_hip",
     "right_hip",
@@ -23,11 +23,35 @@ const ExtractPosition = (pose) => {
     importantPoints.includes(keypoint.name)
   );
 
+  // // hypothetical padding
+  const horizontalPadding = 60;
+  const verticalPadding = 60;
+  const left = horizontalPadding;
+  const right = ctx.canvas.width - horizontalPadding;
+  const top = verticalPadding;
+  const bottom = ctx.canvas.height - verticalPadding;
+
   const importantPose = {
     keypoints: filteredKeypoints,
     score: pose.score,
   };
-  console.log("extracted pose info is ", importantPose);
+
+  const pointsOutsidePadding = filteredKeypoints.filter((keypoint) => {
+    const x = ctx.canvas.width - keypoint.x;
+    const y = keypoint.y;
+    return x < left || x > right || y < top || y > bottom;
+  });
+
+  if (pointsOutsidePadding.length === 0) {
+    console.log("Perfect");
+  } else {
+    console.log(
+      "Points outside padding:",
+      pointsOutsidePadding.map((kp) => kp.name)
+    );
+  }
+
+  console.log("Important Pose:", importantPose);
 };
 
 export default function ExtractData() {
@@ -83,9 +107,8 @@ export default function ExtractData() {
           flipHorizontal: false,
         });
         poseRef.current = poses.length > 0 ? poses[0] : null;
+        console.log("inside detectPose", poseRef.current);
         // console.log("Pose detected:", poseRef.current); // enable for debugging
-
-        ExtractPosition(poseRef.current);
       } catch (error) {
         console.error("Error during pose detection:", error);
       }
@@ -144,6 +167,8 @@ export default function ExtractData() {
 
       // Draw the skeleton if pose data is available
       if (poseRef.current) {
+        console.log("Inside drawFrame", poseRef.current);
+        PrintPosition(poseRef.current, ctx);
         drawSkeleton(poseRef.current, ctx);
       }
     }
@@ -226,6 +251,19 @@ export default function ExtractData() {
       ["right_hip", "right_knee"],
       ["right_knee", "right_ankle"],
     ];
+    // Draw bounding box with padding
+    const horizontalPadding = 50;
+    const verticalPadding = 50;
+    const left = horizontalPadding;
+    const right = ctx.canvas.width - horizontalPadding;
+    const top = verticalPadding;
+    const bottom = ctx.canvas.height - verticalPadding;
+
+    ctx.beginPath();
+    ctx.rect(ctx.canvas.width - right, top, right - left, bottom - top);
+    ctx.strokeStyle = "green";
+    ctx.lineWidth = 2;
+    ctx.stroke();
 
     // Draw connections
     connections.forEach(([partA, partB]) => {
@@ -275,6 +313,7 @@ export default function ExtractData() {
       {isCameraOn && (
         <>
           {/* <CameraOverlay isCameraOn={isCameraOn} /> */}
+          Please Be inside the green rectangle at all times
           {overlayMessage}
           <WebcamFeed webcamRef={webcamRef} canvasRef={canvasRef} />
           <PoseNetModel setDetector={setDetector} /> {/* Update this prop */}
