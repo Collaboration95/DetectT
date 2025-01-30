@@ -2,7 +2,13 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
 import Button from "@mui/material/Button";
 import { Camera } from "lucide-react";
 import "@tensorflow/tfjs"; // Ensure TensorFlow.js is imported
-import { WebcamFeed,  PoseNetModel } from "./ExtractData/index.js";
+import { WebcamFeed, PoseNetModel } from "./ExtractData/index.js";
+
+/**
+ * Extracts specific keypoints from a detected pose.
+ * Filters for important keypoints such as shoulders, hips, and nose.
+ * @param {Object} pose - The detected pose object containing keypoints.
+ */
 
 const ExtractPosition = (pose) => {
   const importantPoints = [
@@ -29,28 +35,34 @@ export default function ExtractData() {
   const [detector, setDetector] = useState(null); // Update state to hold the detector
   // const [detectionInterval, setDetectionInterval] = useState(100); // ms between detections
   const detectionInterval = 100; // ms between detections
-  const [showOverlay, setShowOverlay] = useState(false);
+  const [overlayMessage, setOverlayMessage] = useState("");
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
   const requestRef = useRef(null);
   const previousTimeRef = useRef(null);
   const poseRef = useRef(null);
 
+  /**
+   * Toggles the camera on or off.
+   * If the camera is enabled, pose detection is also toggled.
+   */
   const toggleCamera = useCallback(() => {
     setIsCameraOn((prev) => !prev);
     togglePoseDetection();
   }, []);
 
+  /**
+   * Toggles pose detection on or off.
+   */
+
   const togglePoseDetection = useCallback(() => {
     setIsPoseDetectionOn((prev) => !prev);
   }, []);
 
-  // trying to display overlay 
-  const displayOverlay  = useCallback(() => {
-    setShowOverlay((prev) => !prev);
-  }, []);
-
-
+  /**
+   * Detects human poses using the PoseNet model.
+   * Ensures that the video feed is ready before running inference.
+   */
   const detectPose = async () => {
     if (
       detector &&
@@ -79,7 +91,6 @@ export default function ExtractData() {
 
         ExtractPosition(poseRef.current);
       } catch (error) {
-
         console.error("Error during pose detection:", error);
       }
     } else {
@@ -87,8 +98,10 @@ export default function ExtractData() {
     }
   };
 
-  
-
+  /**
+   * Renders frames continuously and processes pose detection at fixed intervals.
+   * @param {DOMHighResTimeStamp} time - The current timestamp in milliseconds.
+   */
   const renderFrame = (time) => {
     if (previousTimeRef.current != undefined) {
       const deltaTime = time - previousTimeRef.current;
@@ -106,6 +119,10 @@ export default function ExtractData() {
     requestRef.current = requestAnimationFrame(renderFrame);
   };
 
+  /**
+   * Draws the video frame and overlay (if enabled) onto the canvas.
+   * Also draws the detected pose skeleton.
+   */
   const drawFrame = () => {
     if (
       webcamRef.current &&
@@ -133,20 +150,14 @@ export default function ExtractData() {
       if (poseRef.current) {
         drawSkeleton(poseRef.current, ctx);
       }
-      if (showOverlay) {
-        // Grey overlay
-        ctx.fillStyle = "rgba(0, 0, 0, 0.5)"; // Semi-transparent black
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Text
-        ctx.font = "30px Arial";
-        ctx.fillStyle = "white";
-        ctx.textAlign = "center";
-        ctx.fillText("Hi, how are you?", canvas.width / 2, canvas.height / 2);
-      }
     }
   };
 
+  /**
+   * Draws the detected pose skeleton and keypoints onto the canvas.
+   * @param {Object} pose - The detected pose object.
+   * @param {CanvasRenderingContext2D} ctx - The canvas rendering context.
+   */
   const drawSkeleton = (pose, ctx) => {
     const minConfidence = 0.6;
 
@@ -154,21 +165,15 @@ export default function ExtractData() {
     pose.keypoints.forEach((keypoint) => {
       if (keypoint.score >= minConfidence) {
         ctx.beginPath();
-        ctx.arc(
-          ctx.canvas.width - keypoint.x,
-          keypoint.y,
-          5,
-          0,
-          2 * Math.PI,
-        );
+        ctx.arc(ctx.canvas.width - keypoint.x, keypoint.y, 5, 0, 2 * Math.PI);
         ctx.fillStyle = "red";
         ctx.fill();
       }
     });
 
     ctx.beginPath();
-    ctx.arc(ctx.canvas.width-pose.keypoints[1].x, 10, 5, 0, 2 * Math.PI);
-    ctx.fillStyle = "red"
+    ctx.arc(ctx.canvas.width - pose.keypoints[1].x, 10, 5, 0, 2 * Math.PI);
+    ctx.fillStyle = "red";
     ctx.fill();
 
     const midPointShoulderX =
@@ -241,6 +246,14 @@ export default function ExtractData() {
       }
     });
   };
+  useEffect(() => {
+    if (isCameraOn) {
+      const timer = setTimeout(() => {
+        setShowOverlay(true);
+      }, 5000); // Show overlay after 5 seconds
+      return () => clearTimeout(timer);
+    }
+  }, [isCameraOn]);
 
   useEffect(() => {
     if (isCameraOn && isPoseDetectionOn) {
@@ -273,6 +286,8 @@ export default function ExtractData() {
 
       {isCameraOn && (
         <>
+          {/* <CameraOverlay isCameraOn={isCameraOn} /> */}
+          {overlayMessage}
           <WebcamFeed webcamRef={webcamRef} canvasRef={canvasRef} />
           <PoseNetModel setDetector={setDetector} /> {/* Update this prop */}
         </>
@@ -280,3 +295,53 @@ export default function ExtractData() {
     </div>
   );
 }
+
+const CameraOverlay = ({ isCameraOn }) => {
+  const [showOverlay, setShowOverlay] = useState(false);
+  const [overlayMessage, setOverlayMessage] = useState("");
+
+  console.log("Inside CameraOverlay", isCameraOn);
+
+  // Function to update the overlay message dynamically
+  const showOverlayMessage = (msg) => {
+    setOverlayMessage(msg);
+    setShowOverlay(true);
+
+    // Hide overlay after 3 seconds
+    setTimeout(() => setShowOverlay(false), 3000);
+  };
+
+  useEffect(() => {
+    if (isCameraOn) {
+      console.log("Inside CameraOverlay", isCameraOn);
+      const timer = setTimeout(() => {
+        showOverlayMessage("Default Message: Adjust your position");
+      }, 5000); // Show overlay after 5 seconds
+
+      return () => clearTimeout(timer);
+    }
+  }, [isCameraOn]);
+
+  return (
+    <>
+      {showOverlay && (
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            background: "rgba(0, 0, 0, 0.7)",
+            color: "#fff",
+            padding: "10px 20px",
+            borderRadius: "10px",
+            fontSize: "18px",
+            textAlign: "center",
+          }}
+        >
+          {overlayMessage}
+        </div>
+      )}
+    </>
+  );
+};
