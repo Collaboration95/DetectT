@@ -54,6 +54,22 @@ const PrintPosition = (pose, ctx) => {
   console.log("Important Pose:", importantPose);
 };
 
+const drawPoint = (ctx, x, y, r, color) => {
+  ctx.beginPath();
+  ctx.arc(ctx.canvas.width - x, y, r, 0, 2 * Math.PI);
+  ctx.fillStyle = color;
+  ctx.fill();
+};
+
+const connectPoints = (ctx, aX, aY, bX, bY, linecolor, lineWidth) => {
+  ctx.beginPath();
+  ctx.moveTo(ctx.canvas.width - aX, aY);
+  ctx.lineTo(ctx.canvas.width - bX, bY);
+  ctx.strokeStyle = linecolor;
+  ctx.lineWidth = lineWidth;
+  ctx.stroke();
+};
+
 export default function ExtractData() {
   const [isCameraOn, setIsCameraOn] = useState(false);
 
@@ -181,60 +197,46 @@ export default function ExtractData() {
    */
   const drawSkeleton = (pose, ctx) => {
     const minConfidence = 0.6;
-
     // Draw keypoints
     pose.keypoints.forEach((keypoint) => {
       if (keypoint.score >= minConfidence) {
-        ctx.beginPath();
-        ctx.arc(ctx.canvas.width - keypoint.x, keypoint.y, 5, 0, 2 * Math.PI);
-        ctx.fillStyle = "red";
-        ctx.fill();
+        drawPoint(ctx, keypoint.x, keypoint.y, 5, "red");
       }
     });
 
-    ctx.beginPath();
-    ctx.arc(ctx.canvas.width - pose.keypoints[1].x, 10, 5, 0, 2 * Math.PI);
-    ctx.fillStyle = "red";
-    ctx.fill();
+    const getKeypoint = (name) => {
+      return pose.keypoints.find((kp) => kp.name === name);
+    };
 
-    const midPointShoulderX =
-      (pose.keypoints.find((kp) => kp.name === "left_shoulder").x +
-        pose.keypoints.find((kp) => kp.name === "right_shoulder").x) /
-      2;
-    const midPointShoulderY =
-      (pose.keypoints.find((kp) => kp.name === "left_shoulder").y +
-        pose.keypoints.find((kp) => kp.name === "right_shoulder").y) /
-      2;
-    const midPointHipX =
-      (pose.keypoints.find((kp) => kp.name === "left_hip").x +
-        pose.keypoints.find((kp) => kp.name === "right_hip").x) /
-      2;
-    const midPointHipY =
-      (pose.keypoints.find((kp) => kp.name === "left_hip").y +
-        pose.keypoints.find((kp) => kp.name === "right_hip").y) /
-      2;
-    ctx.beginPath();
-    ctx.arc(
-      ctx.canvas.width - midPointShoulderX,
-      midPointShoulderY,
-      5,
-      0,
-      2 * Math.PI
-    );
-    ctx.fillStyle = "green";
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(ctx.canvas.width - midPointHipX, midPointHipY, 5, 0, 2 * Math.PI);
-    ctx.fillStyle = "blue";
-    ctx.fill();
+    const leftShoulder = getKeypoint("left_shoulder");
+    const rightShoulder = getKeypoint("right_shoulder");
+    const leftHip = getKeypoint("left_hip");
+    const rightHip = getKeypoint("right_hip");
 
-    // Connect the midpoints of the shoulders and hips
-    ctx.beginPath();
-    ctx.moveTo(ctx.canvas.width - midPointShoulderX, midPointShoulderY);
-    ctx.lineTo(ctx.canvas.width - midPointHipX, midPointHipY);
-    ctx.strokeStyle = "red";
-    ctx.lineWidth = 2;
-    ctx.stroke();
+    if (leftShoulder && rightShoulder) {
+      const midPointShoulderX = (leftShoulder.x + rightShoulder.x) / 2;
+      const midPointShoulderY = (leftShoulder.y + rightShoulder.y) / 2;
+      drawPoint(ctx, midPointShoulderX, midPointShoulderY, 5, "green");
+      if (leftHip && rightHip) {
+        const midPointHipX = (leftHip.x + rightHip.x) / 2;
+        const midPointHipY = (leftHip.y + rightHip.y) / 2;
+        drawPoint(ctx, midPointHipX, midPointHipY, 5, "green");
+        // connect the line between the midpoints of the shoulders and hips
+        connectPoints(
+          ctx,
+          midPointShoulderX,
+          midPointShoulderY,
+          midPointHipX,
+          midPointHipY,
+          "green",
+          2
+        );
+      } else {
+        console.log("hips not detected");
+      }
+    } else {
+      console.log("shoulders not detected");
+    }
 
     // Define connections
     const connections = [
@@ -267,16 +269,11 @@ export default function ExtractData() {
 
     // Draw connections
     connections.forEach(([partA, partB]) => {
-      const a = pose.keypoints.find((kp) => kp.name === partA);
-      const b = pose.keypoints.find((kp) => kp.name === partB);
+      const a = getKeypoint(partA);
+      const b = getKeypoint(partB);
 
       if (a && b && a.score >= minConfidence && b.score >= minConfidence) {
-        ctx.beginPath();
-        ctx.moveTo(ctx.canvas.width - a.x, a.y);
-        ctx.lineTo(ctx.canvas.width - b.x, b.y);
-        ctx.strokeStyle = "blue";
-        ctx.lineWidth = 2;
-        ctx.stroke();
+        connectPoints(ctx, a.x, a.y, b.x, b.y, "blue", 2);
       }
     });
   };
