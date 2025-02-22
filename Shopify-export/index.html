@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Modal Test</title>
+    <!-- Replace the Liquid stylesheet tag with a normal link to modal.css -->
+    <link rel="stylesheet" href="./modal.css" />
+  </head>
+  <body>
+    <!-- The modal overlay + content -->
+    <div id="modal-overlay" class="modal-overlay hidden">
+      <div class="modal-content">
+        <nav class="modal-tabs">
+          <button id="tab-fit" class="tab-button active">My adsdsaFit</button>
+          <button id="tab-profile" class="tab-button">My Profile</button>
+        </nav>
+
+        <!-- Screen 1: "My Fit" -->
+        <section id="screen-fit" class="tab-screen active">
+          <h3>Your Size Is:</h3>
+          <p>This content is shown when “My Fit” is active.</p>
+          <section id="screen-fit-recommend">
+            <nav class="fit-tabs">
+              <button id="fit-slim" class="tab-button">Slim</button>
+              <button id="fit-regular" class="tab-button active">
+                Regular
+              </button>
+              <button id="fit-oversize" class="tab-button">Oversized</button>
+            </nav>
+            <p>We recommend size M based on your measurement</p>
+          </section>
+        </section>
+
+        <!-- Screen 2: "My Profile" -->
+        <section id="screen-profile" class="tab-screen">
+          <div class="camera-container">
+            <button id="start-camera">Enable Camera</button>
+            <p id="user-feedback">Your text goes here.</p>
+            <div id="camera-display-format">
+              <video id="camera-preview" autoplay playsinline></video>
+              <canvas id="camera-output" style="display: none"></canvas>
+            </div>
+            <button id="capture-photo">Capture Photo</button>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- The button that opens the modal -->
+    <button id="open-modal" class="open-modal-button">Find My Size</button>
+
+    <!-- TensorFlow + Pose Detection scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
+
+    <!-- Replace the Liquid asset_url with a local reference to modal.js -->
+    <script src="./modal.js" defer></script>
+  </body>
+</html>
