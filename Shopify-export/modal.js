@@ -80,9 +80,11 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     },
     deactivateCamera() {
-      if (this.stream) {
-        this.stream.getTracks().forEach((track) => track.stop());
-        this.stream = null;
+      console.log("Deactivating camera... outer loop");
+
+      if (video.srcObject) {
+        video.srcObject.getTracks().forEach((track) => track.stop());
+        video.srcObject = null;
       }
       isDetecting = false;
       isReady = false;
@@ -276,37 +278,6 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   };
-
-  // async function startCamera() {
-  //   try {
-  //     stream = await navigator.mediaDevices.getUserMedia({ video: true });
-  //     isDetecting = true;
-  //     video.srcObject = stream;
-  //     video.play();
-  //     video.style.display = "block";
-  //     video.onloadeddata = () => {
-  //       console.log("Video loaded, starting pose detection...");
-  //       startPoseDetection();
-  //       captureButton.style.display = "";
-  //       startButton.style.display = "none";
-  //     };
-  //   } catch (error) {
-  //     console.error("Error starting camera:", error);
-  //   }
-  // }
-  // function deactivateCamera() {
-  //   if (stream) {
-  //     stream.getTracks().forEach((track) => track.stop());
-  //     stream = null;
-  //   }
-  //   // Optionally stop any detection loop here
-  //   isDetecting = false;
-  //   isReady = false;
-  // }
-
-  // startButton.addEventListener("click", async () => {
-  //   startCamera();
-  // });
 
   captureButton.addEventListener("click", () => {
     canvas.width = video.videoWidth;
