@@ -46,6 +46,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   const INTERVAL_MS = 100;
+
   async function detectPose() {
     if (!isDetecting) return;
     if (!isReady || !video || video.readyState < 2) {
@@ -90,7 +91,9 @@ document.addEventListener("DOMContentLoaded", () => {
       isReady = false;
     },
   };
+
   setupUI(elements, cameraController);
+
   function drawPose(poses) {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
@@ -113,10 +116,13 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  const DisplayFeedback = (message) => {
-    userFeedback.innerHTML = message;
+  const analysisState = {
+    state: "start", // possible states: "start", "detecting_one", "ready_one", "take_photo", "start_2"
+    validSince: null,
+    lastFeedback: "", // to store the last feedback message (optional)
   };
 
+  const REQUIRED_TIME = 2000;
   const analysePose = (pose, ctx) => {
     const importantPoints = [
       "left_shoulder",
@@ -152,17 +158,82 @@ document.addEventListener("DOMContentLoaded", () => {
       return x < left || x > right || y < top || y > bottom;
     });
 
-    if (pointsOutsidePadding.length === 0) {
-      console.log("All points inside padding");
-      console.log("Detected pose is :", pose);
+    const isInsideFrame = pointsOutsidePadding.length === 0;
+    const now = Date.now();
 
-      DisplayFeedback("Taking Picture in 3 seconds , please stand still");
-    } else {
-      console.log(
-        "Points outside padding:",
-        pointsOutsidePadding.map((kp) => kp.name)
-      );
+    if (!isInsideFrame && analysisState.state != "start") {
+      analysisState.state = "detecting_one";
+      analysisState.validSince = null;
+      const msg = "Please stand inside the frame";
+      if (analysisState.lastFeedback !== msg) {
+        DisplayFeedback(msg);
+        analysisState.lastFeedback = msg;
+      }
+      return; // break out of loop for next frame
     }
+
+    if (isInsideFrame) {
+      if (!analysisState.validSince) {
+        analysisState.validSince = now;
+      }
+
+      // Only update state if we have enough consecutive valid frames
+      if (now - analysisState.validSince >= REQUIRED_TIME) {
+        switch (analysisState.state) {
+          case "start":
+            analysisState.state = "detecting_one";
+            analysisState.validSince = now; // reset timer
+            DisplayFeedback("Detecting your pose..."); // Initial detection phase
+            break;
+          case "detecting_one":
+            analysisState.state = "ready_one";
+            analysisState.validSince = now; // reset timer
+            DisplayFeedback("Good! Hold that pose for a moment...");
+            break;
+          case "ready_one":
+            analysisState.state = "take_photo";
+            analysisState.validSince = now; // reset timer
+            DisplayFeedback("Taking photo now!");
+            // Optionally, trigger your photo capture function here.
+            break;
+          case "take_photo":
+            analysisState.state = "start_2";
+            analysisState.validSince = now; // reset timer
+            DisplayFeedback("Photo taken. Resetting...");
+            break;
+          case "start_2":
+            // Loop back to start for a new capture or continue as needed.
+            analysisState.state = "start";
+            analysisState.validSince = now; // reset timer
+            DisplayFeedback("Process restarted. Please stand still.");
+            break;
+          default:
+            // If state is unrecognized, reset.
+            analysisState.state = "start";
+            analysisState.validSince = now; // reset timer
+            DisplayFeedback("Resetting detection. Please stand still.");
+            break;
+        }
+      } else {
+        const msg = "Hold that pose for a moment...";
+        if (analysisState.lastFeedback !== msg) {
+          DisplayFeedback(msg);
+          analysisState.lastFeedback = msg;
+        }
+      }
+    } else {
+      if (analysisState.state === "start") {
+        const msg = "Please stand to the centre of the frame ";
+        if (analysisState.lastFeedback !== msg) {
+          DisplayFeedback(msg);
+          analysisState.lastFeedback = msg;
+        }
+      }
+    }
+  };
+
+  const DisplayFeedback = (message) => {
+    userFeedback.innerHTML = message;
   };
 
   const drawSkeleton = (pose, ctx) => {
