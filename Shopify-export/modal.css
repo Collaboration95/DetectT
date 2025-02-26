@@ -4,7 +4,8 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.5);
+  /* background: rgba(0, 0, 0, 0.5);
+   */
   display: flex;
   justify-content: center;
   align-items: center;
@@ -17,6 +18,7 @@
 
 .modal-content {
   background: white;
+  max-width: 80;
   padding: 20px;
   border-radius: 15px;
   text-align: center;
@@ -172,9 +174,11 @@ button {
 /* Style the video so it fills the container’s width (or auto) */
 #camera-preview {
   display: block; /* ensures the video is on its own line */
-  width: 100%; /* fill the container’s width */
+  width: 80%; /* fill the container's width */
   border: 2px solid #ddd;
   transform: scaleX(-1); /* mirror effect if desired */
+  margin-left: auto; /* center horizontally */
+  margin-right: auto; /* center horizontally */
 }
 
 /* Absolutely position the canvas within the container */
@@ -184,7 +188,6 @@ button {
   left: 0;
   width: 100%;
   height: 100%;
-
   z-index: 10;
   pointer-events: none; /* so clicks pass through to the video */
   display: block; /* show the canvas (remove 'display: none') */
