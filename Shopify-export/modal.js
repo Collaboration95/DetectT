@@ -1,4 +1,30 @@
+var uploadedInfo = false;
+let uploadInProgress = false;
+
+// Initialize Firebase using the compat method
+firebase.initializeApp(firebaseConfig);
+firebase.analytics(); // Optional: Initialize analytics if needed
+
+// Get a reference to Firebase Storage
+var storage = firebase.storage();
+
 document.addEventListener("DOMContentLoaded", () => {
+  // Your Firebase configuration
+  const firebaseConfig = {
+    apiKey: "AIzaSyDImJ0CQt9cs8xBT-6hgp26xWjpKT75LHI",
+    authDomain: "untradox-s.firebaseapp.com",
+    projectId: "untradox-s",
+    storageBucket: "untradox-s.firebasestorage.app",
+    messagingSenderId: "814972006616",
+    appId: "1:814972006616:web:cd0e54405b6ed32788a7ad",
+    measurementId: "G-5KCHNHFEZL",
+  };
+
+  // Initialize Firebase
+  // const app = initializeApp(firebaseConfig);
+  // const analytics = getAnalytics(app);
+  // const storage = getStorage(app);
+
   const elements = initalizeElements();
   const {
     overlay,
@@ -90,6 +116,9 @@ document.addEventListener("DOMContentLoaded", () => {
       isDetecting = false;
       isReady = false;
     },
+    DisplayFeedback(message) {
+      userFeedback.innerHTML = message;
+    },
   };
 
   setupUI(elements, cameraController);
@@ -124,15 +153,36 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const REQUIRED_TIME = 2000;
   const analysePose = (pose, ctx) => {
+    if (analysisState.state === "final_state") {
+      DisplayFeedback("Redirecting to a diffrent tab");
+      // Simulate clicking the tabFitBtn after 1 second
+      setTimeout(() => {
+        tabFitBtn.click();
+        console.log(
+          "Automatically switched to fit tab after detection completed"
+        );
+      }, 1000);
+
+      return;
+    }
     const importantPoints = [
+      "nose",
+      "left_eye",
+      "right_eye",
+      "left_ear",
+      "right_ear",
       "left_shoulder",
       "right_shoulder",
-      "left_hip",
-      "right_hip",
       "left_elbow",
       "right_elbow",
       "left_wrist",
       "right_wrist",
+      "left_hip",
+      "right_hip",
+      "left_knee",
+      "right_knee",
+      "left_ankle",
+      "right_ankle",
     ];
 
     const filteredKeypoints = pose.keypoints.filter((keypoint) =>
@@ -140,8 +190,8 @@ document.addEventListener("DOMContentLoaded", () => {
     );
 
     // // hypothetical padding
-    const horizontalPadding = 60;
-    const verticalPadding = 60;
+    const horizontalPadding = 10;
+    const verticalPadding = 10;
     const left = horizontalPadding;
     const right = ctx.canvas.width - horizontalPadding;
     const top = verticalPadding;
@@ -165,6 +215,7 @@ document.addEventListener("DOMContentLoaded", () => {
       analysisState.state = "detecting_one";
       analysisState.validSince = null;
       const msg = "Please stand inside the frame";
+
       if (analysisState.lastFeedback !== msg) {
         DisplayFeedback(msg);
         analysisState.lastFeedback = msg;
@@ -191,15 +242,24 @@ document.addEventListener("DOMContentLoaded", () => {
             DisplayFeedback("Good! Hold that pose for a moment...");
             break;
           case "ready_one":
-            analysisState.state = "take_photo";
-            analysisState.validSince = now; // reset timer
             DisplayFeedback("Taking photo now!");
-            // Optionally, trigger your photo capture function here.
-            break;
+            if (!uploadedInfo) {
+              captureAndSavePhoto(function (err, snapshot) {
+                if (err) {
+                  console.error("Upload failed:", err);
+                  DisplayFeedback("Error: Photo upload failed.");
+                } else {
+                  console.log("Upload successful:", snapshot);
+                  DisplayFeedback("Photo uploaded successfully!");
+                  analysisState.state = "final_state";
+                }
+              });
+            }
           case "take_photo":
             analysisState.state = "start_2";
             analysisState.validSince = now; // reset timer
-            DisplayFeedback("Photo taken. Resetting...");
+            // DisplayFeedback("Photo taken. Resetting...");
+
             break;
           case "start_2":
             // Loop back to start for a new capture or continue as needed.
@@ -207,6 +267,9 @@ document.addEventListener("DOMContentLoaded", () => {
             analysisState.validSince = now; // reset timer
             DisplayFeedback("Process restarted. Please stand still.");
             break;
+          case "final_state":
+            // Loop back to start for a new capture or continue as needed.
+            console.log("proces complete be on your merry way ");
           default:
             // If state is unrecognized, reset.
             analysisState.state = "start";
@@ -232,6 +295,149 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
+  function captureAndSavePhoto(callback) {
+    // Create a temporary canvas to capture the video frame
+    const tempCanvas = document.createElement("canvas");
+    tempCanvas.width = video.videoWidth;
+    tempCanvas.height = video.videoHeight;
+
+    // Draw the current video frame
+    const ctx = tempCanvas.getContext("2d");
+    ctx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
+
+    // Convert the canvas to a JPEG data URL
+    const dataUrl = tempCanvas.toDataURL("image/jpeg");
+
+    // Create a timestamped filename
+    const now = new Date();
+    const timestamp = now.toISOString().replace(/[:.]/g, "-");
+    const filename = `photo_${timestamp}.jpg`;
+
+    // Call uploadToFirebase and pass a callback to handle both success and failure.
+    uploadToFirebase(filename, dataUrl, function (err, snapshot) {
+      if (callback) {
+        callback(err, snapshot);
+      }
+    });
+
+    console.log("Photo captured:", filename);
+  }
+
+  function uploadToFirebase(filename, dataUrl, callback) {
+    if (uploadedInfo) {
+      // Optionally, you could call the callback here if needed.
+      return;
+    }
+    if (uploadInProgress) {
+      console.log("Upload already in progress; skipping duplicate upload.");
+      return;
+    }
+
+    // Set the flag immediately to prevent further uploads.
+    uploadInProgress = true;
+    const storageRef = storage.ref("photos/" + filename);
+
+    storageRef
+      .putString(dataUrl, "data_url")
+      .then(function (snapshot) {
+        uploadedInfo = true;
+        console.log("Uploaded photo to Firebase Storage:", snapshot);
+        // Invoke the callback with no error and the snapshot
+        callback(null, snapshot);
+      })
+      .catch(function (error) {
+        console.error("Error uploading photo to Firebase Storage:", error);
+        uploadInProgress = false;
+        // Invoke the callback with the error object
+        callback(error);
+      });
+  }
+
+  // function captureAndSavePhoto() {
+  //   // Create a temporary canvas to capture the video frame
+  //   const tempCanvas = document.createElement("canvas");
+  //   tempCanvas.width = video.videoWidth;
+  //   tempCanvas.height = video.videoHeight;
+
+  //   // Get the context and draw the current video frame
+  //   const ctx = tempCanvas.getContext("2d");
+
+  //   // If you want the normal (non-mirrored) image:
+  //   ctx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
+
+  //   // Convert the canvas to a JPEG data URL
+  //   const dataUrl = tempCanvas.toDataURL("image/jpeg");
+
+  //   // Create a timestamped filename
+  //   const now = new Date();
+  //   const timestamp = now.toISOString().replace(/[:.]/g, "-");
+  //   const filename = `photo_${timestamp}.jpg`;
+
+  //   // Option 1: Save to localStorage
+  //   console.log("Upload to firebase is called here");
+  //   uploadToFirebase(filename, dataUrl);
+
+  //   // Option 2: Prompt download
+  //   // downloadImage(dataUrl, filename);
+
+  //   console.log("Photo captured:", filename);
+  //   DisplayFeedback("Photo saved! You can now close this window.");
+  // }
+  // function uploadToFirebase(filename, dataUrl) {
+  //   if (uploadedInfo) {
+  //     return;
+  //   }
+  //   if (uploadInProgress) {
+  //     console.log("Upload already in progress; skipping duplicate upload.");
+  //     return;
+  //   }
+  //   // Set the flag immediately to prevent further uploads.
+  //   uploadInProgress = true;
+  //   // // Create a reference in Firebase Storage (e.g., in a "photos" folder)
+  //   var storageRef = storage.ref("photos/" + filename);
+
+  //   // Use putString with the data_url format to upload the image
+  //   storageRef
+  //     .putString(dataUrl, "data_url")
+  //     .then(function (snapshot) {
+  //       uploadedInfo = true;
+  //       console.log("Uploaded photo to Firebase Storage:", snapshot);
+  //     })
+  //     .catch(function (error) {
+  //       console.error("Error uploading photo to Firebase Storage:", error);
+  //       uploadInProgress = false;
+  //     });
+  // }
+
+  // function saveToLocalStorage(filename, dataUrl) {
+  //   // Store image data in localStorage
+  //   try {
+  //     // Check available storage
+  //     const remainingSpace = 5 * 1024 * 1024; // Estimate 5MB remaining (you may need to check actual available space)
+
+  //     // Clean up old photos if needed
+  //     const storedPhotos = Object.keys(localStorage).filter((key) =>
+  //       key.startsWith("photo_")
+  //     );
+  //     if (storedPhotos.length > 10 || dataUrl.length > remainingSpace) {
+  //       // Remove oldest photos if we have more than 10 or if space is limited
+  //       storedPhotos
+  //         .sort()
+  //         .slice(0, storedPhotos.length - 9)
+  //         .forEach((key) => {
+  //           localStorage.removeItem(key);
+  //         });
+  //     }
+
+  //     // Store the new photo
+  //     localStorage.setItem(filename, dataUrl);
+  //     console.log("Photo saved to localStorage:", filename);
+  //   } catch (e) {
+  //     console.error("Error saving to localStorage:", e);
+  //     // If localStorage fails, fall back to download
+  //     downloadImage(dataUrl, filename);
+  //   }
+  // }
   const DisplayFeedback = (message) => {
     userFeedback.innerHTML = message;
   };
@@ -436,6 +642,9 @@ function setupUI(
       // Need to end camera here
       cameraController.isActive = false;
       cameraController.deactivateCamera();
+      if (uploadedInfo) {
+        DisplayFeedback("Nothing happening here ");
+      }
       // mainContent.classList.remove("visible");
       // mainContent.classList.add("hidden");
     }
@@ -453,6 +662,9 @@ function setupUI(
     // Need to end camera
     cameraController.isActive = false;
     cameraController.deactivateCamera();
+    if (uploadedInfo) {
+      DisplayFeedback("Nothing happening here ");
+    }
   });
 
   //My Fit size recommend

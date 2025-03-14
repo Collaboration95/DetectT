@@ -5,6 +5,10 @@
     <title>Modal Test</title>
     <!-- Replace the Liquid stylesheet tag with a normal link to modal.css -->
     <link rel="stylesheet" href="./modal.css" />
+    <script src="firebaseConfig.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.3.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.3.1/firebase-analytics-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.3.1/firebase-storage-compat.js"></script>
   </head>
   <body>
     <!-- The modal overlay + content -->
@@ -49,7 +53,8 @@
     <!-- The button that opens the modal -->
     <button id="open-modal" class="open-modal-button">Find My Size</button>
 
-    <!-- TensorFlow + Pose Detection scripts -->
+    <!-- TensorFlow +  q
+      Detection scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
