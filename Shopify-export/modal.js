@@ -176,18 +176,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const REQUIRED_TIME = 4000;
   const analysePose = (pose, ctx) => {
-    // if (analysisState.state === "final_state") {
-    //   DisplayFeedback("Redirecting to a diffrent tab");
-    //   // Simulate clicking the tabFitBtn after 1 second
-    //   setTimeout(() => {
-    //     tabFitBtn.click();
-    //     console.log(
-    //       "Automatically switched to fit tab after detection completed"
-    //     );
-    //   }, 1000);
-
-    //   return;
-    // }
     //dev version
     const importantPoints = [
       "left_shoulder",
@@ -244,14 +232,31 @@ document.addEventListener("DOMContentLoaded", () => {
     if (analysisState.state === "upload_photo") {
       // Need to upload photos to firebase , no need to traverse through FSM
       console.log("Uploading photos to firebase");
+      DisplayFeedback("Uploading photos to firebase");
+
+      updateSilhouette("disable");
 
       uploadToFirebase(function (err, results) {
         if (err) {
           console.error("Upload failed:", err);
         } else {
           console.log("All images uploaded successfully:", results);
+          analysisState.state = "final_state";
+          DisplayFeedback("Photo upload completed successfully  ");
         }
       });
+      return;
+    } else if (analysisState.state === "final_state") {
+      DisplayFeedback("Measurement Process has been completed");
+      // Simulate clicking the tabFitBtn after 1 second
+      // need to modify this to make changes to the UI before switching over
+      setTimeout(() => {
+        tabFitBtn.click();
+        console.log(
+          "Automatically switched to fit tab after detection completed"
+        );
+      }, 1000);
+
       return;
     }
 
@@ -323,6 +328,7 @@ document.addEventListener("DOMContentLoaded", () => {
             analysisState.state = "detecting_two";
             analysisState.validSince = now; // reset timer
             DisplayFeedback("Please rotate 90 degrees to the right");
+            updateSilhouette("start_2");
             break;
           case "detecting_two":
             analysisState.state = "ready_two";
@@ -346,15 +352,12 @@ document.addEventListener("DOMContentLoaded", () => {
             });
           case "final_state":
             DisplayFeedback("Photo Taking process has been completed");
-
             analysisState.state = "dummy_state";
             break;
           case "dummy_state":
             console.log("No transition needed");
             break;
-          case "upload_photo":
-            console.log("Analysis state data is", analysisState);
-            break;
+
           default:
             // If state is unrecognized, reset.
             analysisState.state = "start";
@@ -808,12 +811,13 @@ function updateSilhouette(mode) {
       // console.log("silhouette start");
       silhouette.style.opacity = "0.3";
       break;
-    case "detecting":
+    case "start_2":
       // “detecting_one” or “ready_one” => silhouette 30%
-      silhouette.style.display = "block";
+      silhouette.src = "./assets/front.png";
       silhouette.style.opacity = "0.3";
+
       break;
-    case "final":
+    case "disable":
       // “final_state” => remove silhouette
       // silhouette.style.display = "none";
       silhouette.style.opacity = "0";
