@@ -193,6 +193,20 @@ button {
   display: block; /* show the canvas (remove 'display: none') */
 }
 
+#expected-silhouette {
+  position: absolute; /* Place the image within #camera-display-format */
+  top: 50%; /* Center it vertically */
+  left: 50%; /* Center it horizontally */
+  transform: translate(-50%, -50%);
+  /* width: 80%; Or 100%, or match your video’s size, etc. */
+  /* height: 60%; */
+  width: auto;
+  height: 80%;
+  opacity: 0;
+  pointer-events: none; /* Don’t block clicks on the video */
+  z-index: 12; /* Ensure it’s on top of the video/canvas */
+}
+
 #user-feedback {
   font-size: 30px;
 }

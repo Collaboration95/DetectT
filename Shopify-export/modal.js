@@ -86,6 +86,18 @@ document.addEventListener("DOMContentLoaded", () => {
     setTimeout(detectPose, INTERVAL_MS);
   }
 
+  window.addEventListener("resize", () => {
+    const video = cameraController.getVideoElement();
+    const silhouette = document.getElementById("expected-silhouette");
+    const vidHeight = video.offsetHeight;
+    silhouette.style.height = vidHeight * 0.95 + "px";
+    // console.log(
+    //   "Window has been resized with new video height and width ",
+    //   video.offsetWidth,
+    //   video.offsetHeight
+    // );
+  });
+
   const cameraController = {
     isActive: false,
     stream: null,
@@ -98,6 +110,12 @@ document.addEventListener("DOMContentLoaded", () => {
         video.style.display = "block";
         video.onloadeddata = () => {
           console.log("Video loaded, starting pose detection...");
+
+          // TODO : convert this to a function to initialize the silhoutte
+          const silhouette = document.getElementById("expected-silhouette");
+          console.log("silhouette", video.offsetWidth, video.offsetHeight);
+          const vidHeight = video.offsetHeight;
+          silhouette.style.height = vidHeight * 0.95 + "px";
           startPoseDetection();
           captureButton.style.display = "";
           startButton.style.display = "none";
@@ -118,6 +136,9 @@ document.addEventListener("DOMContentLoaded", () => {
     },
     DisplayFeedback(message) {
       userFeedback.innerHTML = message;
+    },
+    getVideoElement() {
+      return video;
     },
   };
 
@@ -151,20 +172,20 @@ document.addEventListener("DOMContentLoaded", () => {
     lastFeedback: "", // to store the last feedback message (optional)
   };
 
-  const REQUIRED_TIME = 2000;
+  const REQUIRED_TIME = 4000;
   const analysePose = (pose, ctx) => {
-    if (analysisState.state === "final_state") {
-      DisplayFeedback("Redirecting to a diffrent tab");
-      // Simulate clicking the tabFitBtn after 1 second
-      setTimeout(() => {
-        tabFitBtn.click();
-        console.log(
-          "Automatically switched to fit tab after detection completed"
-        );
-      }, 1000);
+    // if (analysisState.state === "final_state") {
+    //   DisplayFeedback("Redirecting to a diffrent tab");
+    //   // Simulate clicking the tabFitBtn after 1 second
+    //   setTimeout(() => {
+    //     tabFitBtn.click();
+    //     console.log(
+    //       "Automatically switched to fit tab after detection completed"
+    //     );
+    //   }, 1000);
 
-      return;
-    }
+    //   return;
+    // }
     const importantPoints = [
       "nose",
       "left_eye",
@@ -222,6 +243,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       return; // break out of loop for next frame
     }
+    updateSilhouette("start");
 
     if (isInsideFrame) {
       if (!analysisState.validSince) {
@@ -234,6 +256,7 @@ document.addEventListener("DOMContentLoaded", () => {
           case "start":
             analysisState.state = "detecting_one";
             analysisState.validSince = now; // reset timer
+            updateSilhouette("start");
             DisplayFeedback("Detecting your pose..."); // Initial detection phase
             break;
           case "detecting_one":
@@ -243,18 +266,28 @@ document.addEventListener("DOMContentLoaded", () => {
             break;
           case "ready_one":
             DisplayFeedback("Taking photo now!");
-            if (!uploadedInfo) {
-              captureAndSavePhoto(function (err, snapshot) {
-                if (err) {
-                  console.error("Upload failed:", err);
-                  DisplayFeedback("Error: Photo upload failed.");
-                } else {
-                  console.log("Upload successful:", snapshot);
-                  DisplayFeedback("Photo uploaded successfully!");
-                  analysisState.state = "final_state";
-                }
-              });
-            }
+            capturePhoto(function (err, snapshot) {
+              if (err) {
+                console.error("Upload failed:", err);
+                DisplayFeedback("Error: Photo upload failed.");
+              } else {
+                console.log("Upload successful:", snapshot);
+                DisplayFeedback("Photo uploaded successfully!");
+                analysisState.state = "final_state";
+              }
+            });
+          // if (!uploadedInfo) {
+          //   captureAndSavePhoto(function (err, snapshot) {
+          //     if (err) {
+          //       console.error("Upload failed:", err);
+          //       DisplayFeedback("Error: Photo upload failed.");
+          //     } else {
+          //       console.log("Upload successful:", snapshot);
+          //       DisplayFeedback("Photo uploaded successfully!");
+          //       analysisState.state = "final_state";
+          //     }
+          //   });
+          // }
           case "take_photo":
             analysisState.state = "start_2";
             analysisState.validSince = now; // reset timer
@@ -286,7 +319,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     } else {
       if (analysisState.state === "start") {
-        const msg = "Please stand to the centre of the frame ";
+        const msg = "Please match the silhoutte with your body";
         if (analysisState.lastFeedback !== msg) {
           DisplayFeedback(msg);
           analysisState.lastFeedback = msg;
@@ -294,8 +327,8 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
   };
-
-  function captureAndSavePhoto(callback) {
+  function capturePhoto(callback) {
+    console.log("Capture photo being called");
     // Create a temporary canvas to capture the video frame
     const tempCanvas = document.createElement("canvas");
     tempCanvas.width = video.videoWidth;
@@ -308,21 +341,44 @@ document.addEventListener("DOMContentLoaded", () => {
     // Convert the canvas to a JPEG data URL
     const dataUrl = tempCanvas.toDataURL("image/jpeg");
 
-    // Create a timestamped filename
+    // Create a timestamped filename (for logging purposes only)
     const now = new Date();
     const timestamp = now.toISOString().replace(/[:.]/g, "-");
     const filename = `photo_${timestamp}.jpg`;
 
-    // Call uploadToFirebase and pass a callback to handle both success and failure.
-    uploadToFirebase(filename, dataUrl, function (err, snapshot) {
-      if (callback) {
-        callback(err, snapshot);
-      }
-    });
-
     console.log("Photo captured:", filename);
-  }
 
+    // Call the callback with the dataUrl instead of uploading
+    if (callback) {
+      callback(null, dataUrl);
+    }
+
+    return dataUrl;
+  }
+  // function captureAndSavePhoto(callback) {
+  //   // Create a temporary canvas to capture the video frame
+  //   const tempCanvas = document.createElement("canvas");
+  //   tempCanvas.width = video.videoWidth;
+  //   tempCanvas.height = video.videoHeight;
+
+  //   // Draw the current video frame
+  //   const ctx = tempCanvas.getContext("2d");
+  //   ctx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
+
+  //   // Convert the canvas to a JPEG data URL
+  //   const dataUrl = tempCanvas.toDataURL("image/jpeg");
+
+  //   // Create a timestamped filename
+  //   const now = new Date();
+  //   const timestamp = now.toISOString().replace(/[:.]/g, "-");
+  //   const filename = `photo_${timestamp}.jpg`;
+
+  //   // Call uploadToFirebase and pass a callback to handle both success and failure.
+  //   uploadToFirebase(filename, dataUrl, function (err, snapshot) {
+  //     if (callback) {
+  //       callback(err, snapshot);
+  //     }
+  //   });
   function uploadToFirebase(filename, dataUrl, callback) {
     if (uploadedInfo) {
       // Optionally, you could call the callback here if needed.
@@ -352,92 +408,6 @@ document.addEventListener("DOMContentLoaded", () => {
         callback(error);
       });
   }
-
-  // function captureAndSavePhoto() {
-  //   // Create a temporary canvas to capture the video frame
-  //   const tempCanvas = document.createElement("canvas");
-  //   tempCanvas.width = video.videoWidth;
-  //   tempCanvas.height = video.videoHeight;
-
-  //   // Get the context and draw the current video frame
-  //   const ctx = tempCanvas.getContext("2d");
-
-  //   // If you want the normal (non-mirrored) image:
-  //   ctx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
-
-  //   // Convert the canvas to a JPEG data URL
-  //   const dataUrl = tempCanvas.toDataURL("image/jpeg");
-
-  //   // Create a timestamped filename
-  //   const now = new Date();
-  //   const timestamp = now.toISOString().replace(/[:.]/g, "-");
-  //   const filename = `photo_${timestamp}.jpg`;
-
-  //   // Option 1: Save to localStorage
-  //   console.log("Upload to firebase is called here");
-  //   uploadToFirebase(filename, dataUrl);
-
-  //   // Option 2: Prompt download
-  //   // downloadImage(dataUrl, filename);
-
-  //   console.log("Photo captured:", filename);
-  //   DisplayFeedback("Photo saved! You can now close this window.");
-  // }
-  // function uploadToFirebase(filename, dataUrl) {
-  //   if (uploadedInfo) {
-  //     return;
-  //   }
-  //   if (uploadInProgress) {
-  //     console.log("Upload already in progress; skipping duplicate upload.");
-  //     return;
-  //   }
-  //   // Set the flag immediately to prevent further uploads.
-  //   uploadInProgress = true;
-  //   // // Create a reference in Firebase Storage (e.g., in a "photos" folder)
-  //   var storageRef = storage.ref("photos/" + filename);
-
-  //   // Use putString with the data_url format to upload the image
-  //   storageRef
-  //     .putString(dataUrl, "data_url")
-  //     .then(function (snapshot) {
-  //       uploadedInfo = true;
-  //       console.log("Uploaded photo to Firebase Storage:", snapshot);
-  //     })
-  //     .catch(function (error) {
-  //       console.error("Error uploading photo to Firebase Storage:", error);
-  //       uploadInProgress = false;
-  //     });
-  // }
-
-  // function saveToLocalStorage(filename, dataUrl) {
-  //   // Store image data in localStorage
-  //   try {
-  //     // Check available storage
-  //     const remainingSpace = 5 * 1024 * 1024; // Estimate 5MB remaining (you may need to check actual available space)
-
-  //     // Clean up old photos if needed
-  //     const storedPhotos = Object.keys(localStorage).filter((key) =>
-  //       key.startsWith("photo_")
-  //     );
-  //     if (storedPhotos.length > 10 || dataUrl.length > remainingSpace) {
-  //       // Remove oldest photos if we have more than 10 or if space is limited
-  //       storedPhotos
-  //         .sort()
-  //         .slice(0, storedPhotos.length - 9)
-  //         .forEach((key) => {
-  //           localStorage.removeItem(key);
-  //         });
-  //     }
-
-  //     // Store the new photo
-  //     localStorage.setItem(filename, dataUrl);
-  //     console.log("Photo saved to localStorage:", filename);
-  //   } catch (e) {
-  //     console.error("Error saving to localStorage:", e);
-  //     // If localStorage fails, fall back to download
-  //     downloadImage(dataUrl, filename);
-  //   }
-  // }
   const DisplayFeedback = (message) => {
     userFeedback.innerHTML = message;
   };
@@ -589,6 +559,7 @@ function initalizeElements() {
   const startButton = document.getElementById("start-camera");
   const userFeedback = document.getElementById("user-feedback");
   const captureButton = document.getElementById("capture-photo");
+  const silhouette = document.getElementById("expected-silhouette");
   return {
     overlay,
     mainContent,
@@ -605,6 +576,7 @@ function initalizeElements() {
     startButton,
     userFeedback,
     captureButton,
+    silhouette,
   };
 }
 
@@ -705,7 +677,6 @@ function setupUI(
 }
 
 // helper functions to draw stuff
-
 const drawPoint = (ctx, x, y, r, color) => {
   ctx.beginPath();
   ctx.arc(x, y, r, 0, 2 * Math.PI);
@@ -722,109 +693,28 @@ const connectPoints = (ctx, aX, aY, bX, bY, linecolor, lineWidth) => {
   ctx.stroke();
 };
 
-function drawFakeSkeleton(ctx) {
-  const FAKE_POSE = [
-    {
-      y: 100.76992034912108,
-      x: 384.80335235595703,
-      name: "left_shoulder",
-    },
-    {
-      y: 102.15702056884766,
-      x: 245.43790817260742,
-      name: "right_shoulder",
-    },
-    {
-      y: 184.5937919616699,
-      x: 441.77051544189453,
-      name: "left_elbow",
-    },
-    {
-      y: 187.73353576660153,
-      x: 196.80011749267578,
-      name: "right_elbow",
-    },
-    {
-      y: 262.1822738647461,
-      x: 522.043342590332,
-      name: "left_wrist",
-    },
-    {
-      y: 259.95513916015625,
-      x: 119.61420059204102,
-      name: "right_wrist",
-    },
-    {
-      y: 306.4754867553711,
-      x: 355.8803176879883,
-      name: "left_hip",
-    },
-    {
-      y: 304.19166564941406,
-      x: 272.9588317871094,
-      name: "right_hip",
-    },
-    {
-      y: 472.6880264282226,
-      x: 358.6654281616211,
-      name: "left_knee",
-    },
-    {
-      y: 461.5346145629882,
-      x: 280.98581314086914,
-      name: "right_knee",
-    },
-    {
-      y: 445.2193832397461,
-      x: 334.33292388916016,
-      name: "left_ankle",
-    },
-    {
-      y: 444.05029296875,
-      x: 297.999210357666,
-      name: "right_ankle",
-    },
-  ];
+function updateSilhouette(mode) {
+  const silhouette = document.getElementById("expected-silhouette");
+  if (!silhouette) return;
 
-  const FAKE_CONNECTIONS = [
-    ["left_shoulder", "right_shoulder"],
-    ["left_shoulder", "left_elbow"],
-    ["left_elbow", "left_wrist"],
-    ["right_shoulder", "right_elbow"],
-    ["right_elbow", "right_wrist"],
-    ["left_shoulder", "left_hip"],
-    ["right_shoulder", "right_hip"],
-    ["left_hip", "right_hip"],
-    // etc., if you want more connections
-  ];
-
-  const transformPoint = (x, y) => {
-    return {
-      x: (ctx.canvas.width - x) * (ctx.canvas.width / video.videoWidth),
-      y: y * (ctx.canvas.height / video.videoHeight),
-    };
-  };
-
-  // Draw each keypoint
-  FAKE_POSE.forEach((keypoint) => {
-    // Transform the x,y if you are mirroring/flipping
-    const { x, y } = transformPoint(keypoint.x, keypoint.y);
-    drawPoint(ctx, x, y, 5, "blue");
-  });
-
-  // Helper to find a keypoint by name in FAKE_POSE
-  function getFakeKeypoint(name) {
-    return FAKE_POSE.find((kp) => kp.name === name);
+  switch (mode) {
+    case "start":
+      // console.log("silhouette start");
+      silhouette.style.opacity = "0.3";
+      break;
+    case "detecting":
+      // “detecting_one” or “ready_one” => silhouette 30%
+      silhouette.style.display = "block";
+      silhouette.style.opacity = "0.3";
+      break;
+    case "final":
+      // “final_state” => remove silhouette
+      // silhouette.style.display = "none";
+      silhouette.style.opacity = "0";
+      break;
+    default:
+      // If needed, handle "take_photo" or "start_2" or anything else
+      // silhouette.style.display = "none";
+      break;
   }
-
-  // Draw lines between connected parts
-  FAKE_CONNECTIONS.forEach(([partA, partB]) => {
-    const a = getFakeKeypoint(partA);
-    const b = getFakeKeypoint(partB);
-    if (a && b) {
-      const aT = transformPoint(a.x, a.y);
-      const bT = transformPoint(b.x, b.y);
-      connectPoints(ctx, aT.x, aT.y, bT.x, bT.y, "blue", 2);
-    }
-  });
 }
