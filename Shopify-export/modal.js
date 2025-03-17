@@ -170,6 +170,8 @@ document.addEventListener("DOMContentLoaded", () => {
     state: "start", // possible states: "start", "detecting_one", "ready_one", "take_photo", "start_2"
     validSince: null,
     lastFeedback: "", // to store the last feedback message (optional)
+    imageBlobArray: [],
+    photosTaken: 0,
   };
 
   const REQUIRED_TIME = 4000;
@@ -186,12 +188,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     //   return;
     // }
+    //dev version
     const importantPoints = [
-      "nose",
-      "left_eye",
-      "right_eye",
-      "left_ear",
-      "right_ear",
       "left_shoulder",
       "right_shoulder",
       "left_elbow",
@@ -200,11 +198,26 @@ document.addEventListener("DOMContentLoaded", () => {
       "right_wrist",
       "left_hip",
       "right_hip",
-      "left_knee",
-      "right_knee",
-      "left_ankle",
-      "right_ankle",
     ];
+    // const importantPoints = [
+    //   "nose",
+    //   "left_eye",
+    //   "right_eye",
+    //   "left_ear",
+    //   "right_ear",
+    //   "left_shoulder",
+    //   "right_shoulder",
+    //   "left_elbow",
+    //   "right_elbow",
+    //   "left_wrist",
+    //   "right_wrist",
+    //   "left_hip",
+    //   "right_hip",
+    //   "left_knee",
+    //   "right_knee",
+    //   "left_ankle",
+    //   "right_ankle",
+    // ];
 
     const filteredKeypoints = pose.keypoints.filter((keypoint) =>
       importantPoints.includes(keypoint.name)
@@ -218,11 +231,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const top = verticalPadding;
     const bottom = ctx.canvas.height - verticalPadding;
 
-    const importantPose = {
-      keypoints: filteredKeypoints,
-      score: pose.score,
-    };
-
     const pointsOutsidePadding = filteredKeypoints.filter((keypoint) => {
       const x = ctx.canvas.width - keypoint.x;
       const y = keypoint.y;
@@ -232,8 +240,36 @@ document.addEventListener("DOMContentLoaded", () => {
     const isInsideFrame = pointsOutsidePadding.length === 0;
     const now = Date.now();
 
-    if (!isInsideFrame && analysisState.state != "start") {
-      analysisState.state = "detecting_one";
+    // pre loop check 2 : Photo taking process completed but need to upload the photo to firebase
+    if (analysisState.state === "upload_photo") {
+      // Need to upload photos to firebase , no need to traverse through FSM
+      console.log("Uploading photos to firebase");
+
+      uploadToFirebase(function (err, results) {
+        if (err) {
+          console.error("Upload failed:", err);
+        } else {
+          console.log("All images uploaded successfully:", results);
+        }
+      });
+      return;
+    }
+
+    // IF user out of frame before photo taking process completed
+    if (
+      !isInsideFrame &&
+      (analysisState.state != "start" || analysisState.state != "start_2")
+    ) {
+      if (analysisState.imageBlobArray.length == 0) {
+        analysisState.state = "detecting_one";
+      } else if (analysisState.imageBlobArray.length == 1) {
+        analysisState.state = "detecting_two";
+      } else {
+        console.log(
+          "Edge case detected, occurs when user outside of frame after taking photos"
+        );
+      }
+
       analysisState.validSince = null;
       const msg = "Please stand inside the frame";
 
@@ -243,6 +279,8 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       return; // break out of loop for next frame
     }
+
+    // after loading the detector model , we display the silhouette
     updateSilhouette("start");
 
     if (isInsideFrame) {
@@ -262,47 +300,61 @@ document.addEventListener("DOMContentLoaded", () => {
           case "detecting_one":
             analysisState.state = "ready_one";
             analysisState.validSince = now; // reset timer
-            DisplayFeedback("Good! Hold that pose for a moment...");
+            DisplayFeedback("Pose Detection in Progress , Remain Still");
             break;
           case "ready_one":
             DisplayFeedback("Taking photo now!");
-            capturePhoto(function (err, snapshot) {
+
+            returnPhotoRef("front", function (err, result) {
               if (err) {
-                console.error("Upload failed:", err);
-                DisplayFeedback("Error: Photo upload failed.");
+                console.error("Capture Photo method failed with", err);
+                // DisplayFeedback("Error: Photo upload failed.");
+                // TODO : Need to reset the loop here
               } else {
-                console.log("Upload successful:", snapshot);
-                DisplayFeedback("Photo uploaded successfully!");
-                analysisState.state = "final_state";
+                console.log("Saved image to local disk:", result);
+                DisplayFeedback("Moving to Next Pose");
+                analysisState.imageBlobArray.push(result);
+                analysisState.state = "start_2";
+                analysisState.validSince = now; // reset timer
               }
             });
-          // if (!uploadedInfo) {
-          //   captureAndSavePhoto(function (err, snapshot) {
-          //     if (err) {
-          //       console.error("Upload failed:", err);
-          //       DisplayFeedback("Error: Photo upload failed.");
-          //     } else {
-          //       console.log("Upload successful:", snapshot);
-          //       DisplayFeedback("Photo uploaded successfully!");
-          //       analysisState.state = "final_state";
-          //     }
-          //   });
-          // }
-          case "take_photo":
-            analysisState.state = "start_2";
-            analysisState.validSince = now; // reset timer
-            // DisplayFeedback("Photo taken. Resetting...");
-
-            break;
           case "start_2":
             // Loop back to start for a new capture or continue as needed.
-            analysisState.state = "start";
+            analysisState.state = "detecting_two";
             analysisState.validSince = now; // reset timer
-            DisplayFeedback("Process restarted. Please stand still.");
+            DisplayFeedback("Please rotate 90 degrees to the right");
             break;
+          case "detecting_two":
+            analysisState.state = "ready_two";
+            analysisState.validSince = now; // reset timer
+            DisplayFeedback("Good! Hold that pose for a moment...");
+          case "ready_two":
+            DisplayFeedback("Taking photo now!");
+            // find a way to rename front and back for this function to name stuff properly
+            returnPhotoRef("side", function (err, result) {
+              if (err) {
+                console.error("Capture Photo method failed with", err);
+                // DisplayFeedback("Error: Photo upload failed.");
+              } else {
+                console.log("Saved image to local disk:", result);
+                DisplayFeedback("Photo uploaded successfully!");
+
+                analysisState.imageBlobArray.push(result);
+                analysisState.validSince = now; // reset timer
+                analysisState.state = "upload_photo";
+              }
+            });
           case "final_state":
-            // Loop back to start for a new capture or continue as needed.
-            console.log("proces complete be on your merry way ");
+            DisplayFeedback("Photo Taking process has been completed");
+
+            analysisState.state = "dummy_state";
+            break;
+          case "dummy_state":
+            console.log("No transition needed");
+            break;
+          case "upload_photo":
+            console.log("Analysis state data is", analysisState);
+            break;
           default:
             // If state is unrecognized, reset.
             analysisState.state = "start";
@@ -311,7 +363,7 @@ document.addEventListener("DOMContentLoaded", () => {
             break;
         }
       } else {
-        const msg = "Hold that pose for a moment...";
+        const msg = "Detection in Progress , Remain Still";
         if (analysisState.lastFeedback !== msg) {
           DisplayFeedback(msg);
           analysisState.lastFeedback = msg;
@@ -327,8 +379,12 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
   };
-  function capturePhoto(callback) {
+
+  function returnPhotoRef(url_modifier, callback) {
+    console.log("REturn photo ref being called");
+    // {filename,blob}
     console.log("Capture photo being called");
+
     // Create a temporary canvas to capture the video frame
     const tempCanvas = document.createElement("canvas");
     tempCanvas.width = video.videoWidth;
@@ -338,23 +394,71 @@ document.addEventListener("DOMContentLoaded", () => {
     const ctx = tempCanvas.getContext("2d");
     ctx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
 
-    // Convert the canvas to a JPEG data URL
-    const dataUrl = tempCanvas.toDataURL("image/jpeg");
-
     // Create a timestamped filename (for logging purposes only)
     const now = new Date();
     const timestamp = now.toISOString().replace(/[:.]/g, "-");
-    const filename = `photo_${timestamp}.jpg`;
+    const filename = `${url_modifier}_${timestamp}.jpg`;
 
-    console.log("Photo captured:", filename);
+    // Convert the canvas to a Blob (high quality)
+    tempCanvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          console.error("Failed to capture image as Blob.");
+          if (callback) callback(new Error("Failed to create Blob"), null);
+          return;
+        }
 
-    // Call the callback with the dataUrl instead of uploading
-    if (callback) {
-      callback(null, dataUrl);
+        console.log("Photo captured:", filename);
+
+        // Call the callback with the Blob instead of a base64 string
+        if (callback) {
+          callback(null, { filename, blob });
+        }
+      },
+      "image/jpeg",
+      0.95
+    ); // High-quality JPEG (95%)
+  }
+
+  function uploadToFirebase(callback) {
+    // Prevent duplicate uploads if already done or in progress.
+    if (uploadedInfo) {
+      return callback(null, "Already uploaded");
+    }
+    if (uploadInProgress) {
+      console.log("Upload already in progress; skipping duplicate upload.");
+      return;
     }
 
-    return dataUrl;
+    uploadInProgress = true;
+
+    // Create an array of promises for each image upload.
+
+    const uploadPromises = analysisState.imageBlobArray.map((imageObj) => {
+      const storageRef = storage.ref("photos/" + imageObj.filename);
+      // Upload the blob.
+      return storageRef.put(imageObj.blob).then((snapshot) => {
+        console.log("Uploaded photo:", snapshot);
+        // Return the download URL.
+        return storageRef.getDownloadURL();
+      });
+    });
+
+    // Wait for all upload promises to complete.
+    Promise.all(uploadPromises)
+      .then((downloadURLs) => {
+        uploadedInfo = true;
+        uploadInProgress = false;
+        console.log("All images uploaded. Download URLs:", downloadURLs);
+        callback(null, downloadURLs);
+      })
+      .catch((error) => {
+        console.error("Error uploading photo(s) to Firebase Storage:", error);
+        uploadInProgress = false;
+        callback(error);
+      });
   }
+
   // function captureAndSavePhoto(callback) {
   //   // Create a temporary canvas to capture the video frame
   //   const tempCanvas = document.createElement("canvas");
@@ -379,35 +483,35 @@ document.addEventListener("DOMContentLoaded", () => {
   //       callback(err, snapshot);
   //     }
   //   });
-  function uploadToFirebase(filename, dataUrl, callback) {
-    if (uploadedInfo) {
-      // Optionally, you could call the callback here if needed.
-      return;
-    }
-    if (uploadInProgress) {
-      console.log("Upload already in progress; skipping duplicate upload.");
-      return;
-    }
+  // function uploadToFirebase(filename, dataUrl, callback) {
+  //   if (uploadedInfo) {
+  //     // Optionally, you could call the callback here if needed.
+  //     return;
+  //   }
+  //   if (uploadInProgress) {
+  //     console.log("Upload already in progress; skipping duplicate upload.");
+  //     return;
+  //   }
 
-    // Set the flag immediately to prevent further uploads.
-    uploadInProgress = true;
-    const storageRef = storage.ref("photos/" + filename);
+  //   // Set the flag immediately to prevent further uploads.
+  //   uploadInProgress = true;
+  //   const storageRef = storage.ref("photos/" + filename);
 
-    storageRef
-      .putString(dataUrl, "data_url")
-      .then(function (snapshot) {
-        uploadedInfo = true;
-        console.log("Uploaded photo to Firebase Storage:", snapshot);
-        // Invoke the callback with no error and the snapshot
-        callback(null, snapshot);
-      })
-      .catch(function (error) {
-        console.error("Error uploading photo to Firebase Storage:", error);
-        uploadInProgress = false;
-        // Invoke the callback with the error object
-        callback(error);
-      });
-  }
+  //   storageRef
+  //     .putString(dataUrl, "data_url")
+  //     .then(function (snapshot) {
+  //       uploadedInfo = true;
+  //       console.log("Uploaded photo to Firebase Storage:", snapshot);
+  //       // Invoke the callback with no error and the snapshot
+  //       callback(null, snapshot);
+  //     })
+  //     .catch(function (error) {
+  //       console.error("Error uploading photo to Firebase Storage:", error);
+  //       uploadInProgress = false;
+  //       // Invoke the callback with the error object
+  //       callback(error);
+  //     });
+  // }
   const DisplayFeedback = (message) => {
     userFeedback.innerHTML = message;
   };
@@ -693,6 +797,8 @@ const connectPoints = (ctx, aX, aY, bX, bY, linecolor, lineWidth) => {
   ctx.stroke();
 };
 
+// rewrite updateSilhouette function to be parameter based instead of whatever this is , even toggleMethod is better than this
+// less readable and probably bad code
 function updateSilhouette(mode) {
   const silhouette = document.getElementById("expected-silhouette");
   if (!silhouette) return;
