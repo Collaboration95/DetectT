@@ -20,11 +20,6 @@ document.addEventListener("DOMContentLoaded", () => {
     measurementId: "G-5KCHNHFEZL",
   };
 
-  // Initialize Firebase
-  // const app = initializeApp(firebaseConfig);
-  // const analytics = getAnalytics(app);
-  // const storage = getStorage(app);
-
   const elements = initalizeElements();
   const {
     overlay,
@@ -419,7 +414,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       },
       "image/jpeg",
-      0.95
+      0.99
     ); // High-quality JPEG (95%)
   }
 
@@ -462,59 +457,6 @@ document.addEventListener("DOMContentLoaded", () => {
       });
   }
 
-  // function captureAndSavePhoto(callback) {
-  //   // Create a temporary canvas to capture the video frame
-  //   const tempCanvas = document.createElement("canvas");
-  //   tempCanvas.width = video.videoWidth;
-  //   tempCanvas.height = video.videoHeight;
-
-  //   // Draw the current video frame
-  //   const ctx = tempCanvas.getContext("2d");
-  //   ctx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
-
-  //   // Convert the canvas to a JPEG data URL
-  //   const dataUrl = tempCanvas.toDataURL("image/jpeg");
-
-  //   // Create a timestamped filename
-  //   const now = new Date();
-  //   const timestamp = now.toISOString().replace(/[:.]/g, "-");
-  //   const filename = `photo_${timestamp}.jpg`;
-
-  //   // Call uploadToFirebase and pass a callback to handle both success and failure.
-  //   uploadToFirebase(filename, dataUrl, function (err, snapshot) {
-  //     if (callback) {
-  //       callback(err, snapshot);
-  //     }
-  //   });
-  // function uploadToFirebase(filename, dataUrl, callback) {
-  //   if (uploadedInfo) {
-  //     // Optionally, you could call the callback here if needed.
-  //     return;
-  //   }
-  //   if (uploadInProgress) {
-  //     console.log("Upload already in progress; skipping duplicate upload.");
-  //     return;
-  //   }
-
-  //   // Set the flag immediately to prevent further uploads.
-  //   uploadInProgress = true;
-  //   const storageRef = storage.ref("photos/" + filename);
-
-  //   storageRef
-  //     .putString(dataUrl, "data_url")
-  //     .then(function (snapshot) {
-  //       uploadedInfo = true;
-  //       console.log("Uploaded photo to Firebase Storage:", snapshot);
-  //       // Invoke the callback with no error and the snapshot
-  //       callback(null, snapshot);
-  //     })
-  //     .catch(function (error) {
-  //       console.error("Error uploading photo to Firebase Storage:", error);
-  //       uploadInProgress = false;
-  //       // Invoke the callback with the error object
-  //       callback(error);
-  //     });
-  // }
   const DisplayFeedback = (message) => {
     userFeedback.innerHTML = message;
   };
