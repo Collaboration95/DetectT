@@ -86,11 +86,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const silhouette = document.getElementById("expected-silhouette");
     const vidHeight = video.offsetHeight;
     silhouette.style.height = vidHeight * 0.95 + "px";
-    // console.log(
-    //   "Window has been resized with new video height and width ",
-    //   video.offsetWidth,
-    //   video.offsetHeight
-    // );
   });
 
   const cameraController = {
@@ -169,7 +164,7 @@ document.addEventListener("DOMContentLoaded", () => {
     photosTaken: 0,
   };
 
-  const REQUIRED_TIME = 4000;
+  const REQUIRED_TIME = 3000;
   const analysePose = (pose, ctx) => {
     //dev version
     const importantPoints = [
@@ -258,7 +253,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // IF user out of frame before photo taking process completed
     if (
       !isInsideFrame &&
-      (analysisState.state != "start" || analysisState.state != "start_2")
+      analysisState.state != "start" &&
+      analysisState.state != "start_2"
     ) {
       if (analysisState.imageBlobArray.length == 0) {
         analysisState.state = "detecting_one";
@@ -292,6 +288,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (now - analysisState.validSince >= REQUIRED_TIME) {
         switch (analysisState.state) {
           case "start":
+            console.log("Transitioning to detecting_one ");
             analysisState.state = "detecting_one";
             analysisState.validSince = now; // reset timer
             updateSilhouette("start");
@@ -318,6 +315,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 analysisState.validSince = now; // reset timer
               }
             });
+            break;
           case "start_2":
             // Loop back to start for a new capture or continue as needed.
             analysisState.state = "detecting_two";
@@ -329,6 +327,7 @@ document.addEventListener("DOMContentLoaded", () => {
             analysisState.state = "ready_two";
             analysisState.validSince = now; // reset timer
             DisplayFeedback("Good! Hold that pose for a moment...");
+            break;
           case "ready_two":
             DisplayFeedback("Taking photo now!");
             // find a way to rename front and back for this function to name stuff properly
@@ -345,6 +344,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 analysisState.state = "upload_photo";
               }
             });
+            break;
           case "final_state":
             DisplayFeedback("Photo Taking process has been completed");
             analysisState.state = "dummy_state";
@@ -361,6 +361,9 @@ document.addEventListener("DOMContentLoaded", () => {
             break;
         }
       } else {
+        console.log(
+          "Not enough valid frames yet" + now - analysisState.validSince
+        );
         const msg = "Detection in Progress , Remain Still";
         if (analysisState.lastFeedback !== msg) {
           DisplayFeedback(msg);
