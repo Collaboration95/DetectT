@@ -9,17 +9,6 @@ firebase.analytics(); // Optional: Initialize analytics if needed
 var storage = firebase.storage();
 
 document.addEventListener("DOMContentLoaded", () => {
-  // Your Firebase configuration
-  const firebaseConfig = {
-    apiKey: "AIzaSyDImJ0CQt9cs8xBT-6hgp26xWjpKT75LHI",
-    authDomain: "untradox-s.firebaseapp.com",
-    projectId: "untradox-s",
-    storageBucket: "untradox-s.firebasestorage.app",
-    messagingSenderId: "814972006616",
-    appId: "1:814972006616:web:cd0e54405b6ed32788a7ad",
-    measurementId: "G-5KCHNHFEZL",
-  };
-
   const elements = initalizeElements();
   const {
     overlay,
@@ -57,28 +46,47 @@ document.addEventListener("DOMContentLoaded", () => {
         modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING,
       }
     );
+
     console.log("Pose detector has been initialzed:", detector);
   }
 
   async function startPoseDetection() {
     if (!detector) await initializePoseDetector();
     isReady = true;
-    detectPose();
+    // detectPose();
+    requestAnimationFrame(detectPose);
   }
 
-  const INTERVAL_MS = 100;
+  const THROTTLE_DELAY = 100; // milliseconds, adjust as needed
+  let lastTime = 0;
 
-  async function detectPose() {
+  async function detectPose(timestamp) {
     if (!isDetecting) return;
+
+    // Wait for video readiness
     if (!isReady || !video || video.readyState < 2) {
-      setTimeout(detectPose, INTERVAL_MS);
+      requestAnimationFrame(detectPose);
       return;
     }
-    const poses = await detector.estimatePoses(video, {
-      flipHorizontal: false,
-    });
-    drawPose(poses);
-    setTimeout(detectPose, INTERVAL_MS);
+
+    // Throttle by checking elapsed time
+    if (timestamp - lastTime < THROTTLE_DELAY) {
+      requestAnimationFrame(detectPose);
+      return;
+    }
+
+    lastTime = timestamp;
+
+    try {
+      const poses = await detector.estimatePoses(video, {
+        flipHorizontal: false,
+      });
+      drawPose(poses);
+    } catch (error) {
+      console.error("Error in pose estimation:", error);
+    }
+
+    requestAnimationFrame(detectPose);
   }
 
   window.addEventListener("resize", () => {
@@ -109,6 +117,9 @@ document.addEventListener("DOMContentLoaded", () => {
           startPoseDetection();
           captureButton.style.display = "";
           startButton.style.display = "none";
+          console.log(video.videoWidth, video.videoHeight);
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
         };
       } catch (error) {
         console.error("Error starting camera:", error);
@@ -135,21 +146,20 @@ document.addEventListener("DOMContentLoaded", () => {
   setupUI(elements, cameraController);
 
   function drawPose(poses) {
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
     const ctx = canvas.getContext("2d");
-
     // Mirror the canvas
     ctx.save();
     ctx.scale(-1, 1);
     ctx.translate(-canvas.width, 0);
 
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    // My understanding is that if new canvas is less than image size ,we can see the past points
+    // to avoid thsis we clear the image
+    // causes some weird issues
+    // ctx.clearRect(0, 0, canvas.width, canvas.height); // ← Problem is here!
 
     ctx.restore();
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
+    video.display = "none";
     poses.forEach((pose) => {
       drawSkeleton(pose, ctx);
       analysePose(pose, ctx);
@@ -579,6 +589,7 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   captureButton.addEventListener("click", () => {
+    // depreciated method
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     canvas.getContext("2d").drawImage(video, 0, 0);
