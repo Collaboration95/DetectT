@@ -1,5 +1,38 @@
-const tf3Worker = new Worker("tf3-worker.js");
-tf3Worker.postMessage({ command: "version" });
+const tf1Worker = new Worker("tf1-worker.js");
+tf1Worker.postMessage({ command: "version" });
+
+tf1Worker.onmessage = (e) => {
+  const data = e.data;
+  if (data.type === "version") {
+    console.log("TF1 worker version:", data.version);
+  } else if (data.type === "model_loaded") {
+    if (data.success) {
+      console.log("Teachable Machine model loaded in worker");
+    } else {
+      console.error("Failed to load model in worker:", data.error);
+    }
+  } else if (data.type === "classification") {
+    // The worker has returned a classification
+    if (data.error) {
+      console.error("Worker classification error:", data.error);
+      workerClassificationResolve(false); // pass a "failed" to the awaiting Promise
+    } else {
+      console.log(
+        "TM classification bestClass:",
+        data.bestClass,
+        "prob:",
+        data.probability
+      );
+      // resolve the awaiting Promise with the classification
+      workerClassificationResolve({
+        className: data.bestClass,
+        probability: data.probability,
+      });
+    }
+  }
+};
+
+let workerClassificationResolve = null;
 
 var uploadedInfo = false;
 let uploadInProgress = false;
@@ -10,24 +43,24 @@ firebase.initializeApp(firebaseConfig);
 let tmModel, tmMaxPredictions;
 
 // Sign in anonymously
-firebase
-  .auth()
-  .signInAnonymously()
-  .then(() => {
-    console.log("Signed in anonymously");
-  })
-  .catch((error) => {
-    console.error("Anonymous sign-in failed:", error);
-  });
+// firebase
+//   .auth()
+//   .signInAnonymously()
+//   .then(() => {
+//     console.log("Signed in anonymously");
+//   })
+//   .catch((error) => {
+//     console.error("Anonymous sign-in failed:", error);
+//   });
 
-// Listen for auth state changes
-firebase.auth().onAuthStateChanged((user) => {
-  if (user) {
-    console.log("User is authenticated, UID:", user.uid);
-  } else {
-    console.log("No user authenticated.");
-  }
-});
+// // Listen for auth state changes
+// firebase.auth().onAuthStateChanged((user) => {
+//   if (user) {
+//     console.log("User is authenticated, UID:", user.uid);
+//   } else {
+//     console.log("No user authenticated.");
+//   }
+// });
 
 // Get a reference to Firebase Storage
 var storage = firebase.storage();
@@ -74,7 +107,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     console.log("Pose detector has been initialzed:", detector);
   }
 
-  await initTeachableMachineModel();
+  // await initTeachableMachineModel();
+
+  // init the model
+  tf1Worker.postMessage({
+    command: "LOAD_MODEL",
+    data: {
+      modelURL: TM_URL + "model.json",
+      metadataURL: TM_URL + "metadata.json",
+    },
+  });
 
   async function startPoseDetection() {
     if (!detector) await initializePoseDetector();
@@ -201,6 +243,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const REQUIRED_TIME = 3000;
+
   const analysePose = async (pose, ctx) => {
     //dev version
     const importantPoints = [
@@ -919,47 +962,82 @@ function updateSilhouette(mode) {
 //   return best.className === "Pose_One" && best.probability >= 0.8;
 // }
 
-async function isPoseOne(pose) {
-  if (!tmModel) return false;
+// async function isPoseOne(pose) {
+//   console.log("isPoseOne being called");
+//   if (!tmModel) return false;
 
-  // Get the same canvas that your code updates each frame
+//   // Get the same canvas that your code updates each frame
+//   const cameraOutput = document.getElementById("camera-output");
+
+//   // Estimate pose from that canvas
+//   const { pose: tmPoseOutput, posenetOutput } =
+//     await tmModel.estimatePose(cameraOutput);
+
+//   // Next, get classification predictions
+//   const predictions = await tmModel.predict(posenetOutput);
+
+//   // Find whichever class has the highest probability
+//   let best = predictions.reduce((a, b) =>
+//     a.probability > b.probability ? a : b
+//   );
+//   console.log(
+//     "Teachable Machine classification:",
+//     best.className,
+//     best.probability
+//   );
+
+//   // Example: Return true if "Pose_One" is top class with >= 0.8 probability
+//   return best.className === "Pose_One" && best.probability >= 0.8;
+// }
+
+async function isPoseOne() {
+  console.log("isPoseOne is being called");
+  // 1) Grab RGBA data from #camera-output
   const cameraOutput = document.getElementById("camera-output");
+  const ctx = cameraOutput.getContext("2d");
+  const { width, height } = cameraOutput;
 
-  // Estimate pose from that canvas
-  const { pose: tmPoseOutput, posenetOutput } =
-    await tmModel.estimatePose(cameraOutput);
+  // Get the raw RGBA pixel data
+  const imageData = ctx.getImageData(0, 0, width, height);
 
-  // Next, get classification predictions
-  const predictions = await tmModel.predict(posenetOutput);
+  // 2) Send it to the worker
+  // We'll wrap this in a Promise that resolves when we get 'classification' back
+  const result = await new Promise((resolve, reject) => {
+    // store the resolver so we can call it in tf1Worker.onmessage
+    workerClassificationResolve = resolve;
 
-  // Find whichever class has the highest probability
-  let best = predictions.reduce((a, b) =>
-    a.probability > b.probability ? a : b
-  );
-  console.log(
-    "Teachable Machine classification:",
-    best.className,
-    best.probability
-  );
+    tf1Worker.postMessage({
+      command: "CLASSIFY_FRAME",
+      data: {
+        width,
+        height,
+        buffer: imageData.data.buffer, // pass ArrayBuffer from typed array
+      },
+    });
+  });
 
-  // Example: Return true if "Pose_One" is top class with >= 0.8 probability
-  return best.className === "Pose_One" && best.probability >= 0.8;
+  if (!result || !result.className) {
+    console.error("Worker classification failed, or no result");
+    return false;
+  }
+
+  // Example: Return true if best class is "Pose_One" with >= 0.8 probability
+  return result.className === "Pose_One" && result.probability >= 0.8;
 }
-
 function isPoseTwo(pose) {
   return true;
 }
 
-async function initTeachableMachineModel() {
-  const modelURL = TM_URL + "model.json";
-  const metadataURL = TM_URL + "metadata.json";
+// async function initTeachableMachineModel() {
+//   const modelURL = TM_URL + "model.json";
+//   const metadataURL = TM_URL + "metadata.json";
 
-  // Load the Teachable Machine Pose model + metadata
-  tmModel = await tmPose.load(modelURL, metadataURL);
-  tmMaxPredictions = tmModel.getTotalClasses();
+//   // Load the Teachable Machine Pose model + metadata
+//   tmModel = await tmPose.load(modelURL, metadataURL);
+//   tmMaxPredictions = tmModel.getTotalClasses();
 
-  console.log("Teachable Machine model loaded");
-}
+//   console.log("Teachable Machine model loaded");
+// }
 
 function returnCanvasElement() {
   return document.getElementById("camera-output");
