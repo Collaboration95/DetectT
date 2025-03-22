@@ -1,14 +1,38 @@
+const tf3Worker = new Worker("tf3-worker.js");
+tf3Worker.postMessage({ command: "version" });
+
 var uploadedInfo = false;
 let uploadInProgress = false;
 
 // Initialize Firebase using the compat method
 firebase.initializeApp(firebaseConfig);
-firebase.analytics(); // Optional: Initialize analytics if needed
+
+let tmModel, tmMaxPredictions;
+
+// Sign in anonymously
+firebase
+  .auth()
+  .signInAnonymously()
+  .then(() => {
+    console.log("Signed in anonymously");
+  })
+  .catch((error) => {
+    console.error("Anonymous sign-in failed:", error);
+  });
+
+// Listen for auth state changes
+firebase.auth().onAuthStateChanged((user) => {
+  if (user) {
+    console.log("User is authenticated, UID:", user.uid);
+  } else {
+    console.log("No user authenticated.");
+  }
+});
 
 // Get a reference to Firebase Storage
 var storage = firebase.storage();
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   const elements = initalizeElements();
   const {
     overlay,
@@ -50,6 +74,8 @@ document.addEventListener("DOMContentLoaded", () => {
     console.log("Pose detector has been initialzed:", detector);
   }
 
+  await initTeachableMachineModel();
+
   async function startPoseDetection() {
     if (!detector) await initializePoseDetector();
     isReady = true;
@@ -57,7 +83,7 @@ document.addEventListener("DOMContentLoaded", () => {
     requestAnimationFrame(detectPose);
   }
 
-  const THROTTLE_DELAY = 100; // milliseconds, adjust as needed
+  const THROTTLE_DELAY = 120; // milliseconds, adjust as needed
   let lastTime = 0;
 
   async function detectPose(timestamp) {
@@ -175,17 +201,17 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   const REQUIRED_TIME = 3000;
-  const analysePose = (pose, ctx) => {
+  const analysePose = async (pose, ctx) => {
     //dev version
     const importantPoints = [
       "left_shoulder",
       "right_shoulder",
-      "left_elbow",
-      "right_elbow",
-      "left_wrist",
-      "right_wrist",
-      "left_hip",
-      "right_hip",
+      // "left_elbow",
+      // "right_elbow",
+      // "left_wrist",
+      // "right_wrist",
+      // "left_hip",
+      // "right_hip",
     ];
     // const importantPoints = [
     //   "nose",
@@ -305,9 +331,18 @@ document.addEventListener("DOMContentLoaded", () => {
             DisplayFeedback("Detecting your pose..."); // Initial detection phase
             break;
           case "detecting_one":
-            analysisState.state = "ready_one";
-            analysisState.validSince = now; // reset timer
-            DisplayFeedback("Pose Detection in Progress , Remain Still");
+            // checking with checking if person in poseOne
+
+            if (!(await isPoseOne(pose))) {
+              DisplayFeedback("Please match the silhoutte with your body");
+              return;
+            } else {
+              console.log("Pose one detected");
+            }
+
+            // analysisState.state = "ready_one";
+            // analysisState.validSince = now; // reset timer
+            // DisplayFeedback("Pose Detection in Progress , Remain Still");
             break;
           case "ready_one":
             DisplayFeedback("Taking photo now!");
@@ -334,6 +369,11 @@ document.addEventListener("DOMContentLoaded", () => {
             updateSilhouette("start_2");
             break;
           case "detecting_two":
+            if (!isPoseTwo(pose)) {
+              DisplayFeedback("Please match the silhoutte with your body");
+              return;
+            }
+            // if pose is correct
             analysisState.state = "ready_two";
             analysisState.validSince = now; // reset timer
             DisplayFeedback("Good! Hold that pose for a moment...");
@@ -432,6 +472,10 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function uploadToFirebase(callback) {
+    const user = firebase.auth().currentUser;
+    if (!user) {
+      return callback(new Error("User is not authenticated"), null);
+    }
     // Prevent duplicate uploads if already done or in progress.
     if (uploadedInfo) {
       return callback(null, "Already uploaded");
@@ -444,24 +488,23 @@ document.addEventListener("DOMContentLoaded", () => {
     uploadInProgress = true;
 
     // Create an array of promises for each image upload.
-
     const uploadPromises = analysisState.imageBlobArray.map((imageObj) => {
       const storageRef = storage.ref("photos/" + imageObj.filename);
-      // Upload the blob.
+      // Upload the blob without getting the download URL
       return storageRef.put(imageObj.blob).then((snapshot) => {
         console.log("Uploaded photo:", snapshot);
-        // Return the download URL.
-        return storageRef.getDownloadURL();
+        // Just return confirmation of successful upload
+        return { filename: imageObj.filename, success: true };
       });
     });
 
     // Wait for all upload promises to complete.
     Promise.all(uploadPromises)
-      .then((downloadURLs) => {
+      .then((results) => {
         uploadedInfo = true;
         uploadInProgress = false;
-        console.log("All images uploaded. Download URLs:", downloadURLs);
-        callback(null, downloadURLs);
+        console.log("All images uploaded successfully:", results);
+        callback(null, results);
       })
       .catch((error) => {
         console.error("Error uploading photo(s) to Firebase Storage:", error);
@@ -469,6 +512,49 @@ document.addEventListener("DOMContentLoaded", () => {
         callback(error);
       });
   }
+
+  // function uploadToFirebase(callback) {
+  //   const user = firebase.auth().currentUser;
+  //   if (!user) {
+  //     return callback(new Error("User is not authenticated"), null);
+  //   }
+  //   // Prevent duplicate uploads if already done or in progress.
+  //   if (uploadedInfo) {
+  //     return callback(null, "Already uploaded");
+  //   }
+  //   if (uploadInProgress) {
+  //     console.log("Upload already in progress; skipping duplicate upload.");
+  //     return;
+  //   }
+
+  //   uploadInProgress = true;
+
+  //   // Create an array of promises for each image upload.
+
+  //   const uploadPromises = analysisState.imageBlobArray.map((imageObj) => {
+  //     const storageRef = storage.ref("photos/" + imageObj.filename);
+  //     // Upload the blob.
+  //     return storageRef.put(imageObj.blob).then((snapshot) => {
+  //       console.log("Uploaded photo:", snapshot);
+  //       // Return the download URL.
+  //       return storageRef.getDownloadURL();
+  //     });
+  //   });
+
+  //   // Wait for all upload promises to complete.
+  //   Promise.all(uploadPromises)
+  //     .then((downloadURLs) => {
+  //       uploadedInfo = true;
+  //       uploadInProgress = false;
+  //       console.log("All images uploaded. Download URLs:", downloadURLs);
+  //       callback(null, downloadURLs);
+  //     })
+  //     .catch((error) => {
+  //       console.error("Error uploading photo(s) to Firebase Storage:", error);
+  //       uploadInProgress = false;
+  //       callback(error);
+  //     });
+  // }
 
   const DisplayFeedback = (message) => {
     userFeedback.innerHTML = message;
@@ -769,7 +855,7 @@ function updateSilhouette(mode) {
       break;
     case "start_2":
       // “detecting_one” or “ready_one” => silhouette 30%
-      silhouette.src = "./assets/front.png";
+      silhouette.src = "./assets/side.png";
       silhouette.style.opacity = "0.3";
 
       break;
@@ -783,4 +869,98 @@ function updateSilhouette(mode) {
       // silhouette.style.display = "none";
       break;
   }
+}
+
+// function isPoseOne(pose) {
+
+//   return true;
+// }
+
+// async function isPoseOne(pose) {
+//   if (!tmModel) return false; // Safety check
+//   console.log("isPoseOne being called");
+
+//   // Get the video element (assumed to exist in your HTML)
+//   const video = document.getElementById("camera-preview");
+
+//   // Create an offscreen canvas and draw the current video frame on it.
+//   const offscreenCanvas = document.createElement("canvas");
+//   offscreenCanvas.width = video.videoWidth || video.width;
+//   offscreenCanvas.height = video.videoHeight || video.height;
+//   const offscreenCtx = offscreenCanvas.getContext("2d");
+//   offscreenCtx.drawImage(
+//     video,
+//     0,
+//     0,
+//     offscreenCanvas.width,
+//     offscreenCanvas.height
+//   );
+
+//   // Now use the offscreen canvas as input for the TM model.
+//   const { pose: tmPoseOutput, posenetOutput } =
+//     await tmModel.estimatePose(offscreenCanvas);
+
+//   // Step 2: Classify
+//   const predictions = await tmModel.predict(posenetOutput);
+
+//   // Step 3: Decide if the user is in “PoseOne”
+//   let best = predictions.reduce((a, b) =>
+//     a.probability > b.probability ? a : b
+//   );
+
+//   console.log(predictions);
+//   console.log(
+//     "PoseOne? Predicted:",
+//     best.className,
+//     best.probability.toFixed(2)
+//   );
+
+//   // Return true only if "Pose_One" is the top class with a high enough probability.
+//   return best.className === "Pose_One" && best.probability >= 0.8;
+// }
+
+async function isPoseOne(pose) {
+  if (!tmModel) return false;
+
+  // Get the same canvas that your code updates each frame
+  const cameraOutput = document.getElementById("camera-output");
+
+  // Estimate pose from that canvas
+  const { pose: tmPoseOutput, posenetOutput } =
+    await tmModel.estimatePose(cameraOutput);
+
+  // Next, get classification predictions
+  const predictions = await tmModel.predict(posenetOutput);
+
+  // Find whichever class has the highest probability
+  let best = predictions.reduce((a, b) =>
+    a.probability > b.probability ? a : b
+  );
+  console.log(
+    "Teachable Machine classification:",
+    best.className,
+    best.probability
+  );
+
+  // Example: Return true if "Pose_One" is top class with >= 0.8 probability
+  return best.className === "Pose_One" && best.probability >= 0.8;
+}
+
+function isPoseTwo(pose) {
+  return true;
+}
+
+async function initTeachableMachineModel() {
+  const modelURL = TM_URL + "model.json";
+  const metadataURL = TM_URL + "metadata.json";
+
+  // Load the Teachable Machine Pose model + metadata
+  tmModel = await tmPose.load(modelURL, metadataURL);
+  tmMaxPredictions = tmModel.getTotalClasses();
+
+  console.log("Teachable Machine model loaded");
+}
+
+function returnCanvasElement() {
+  return document.getElementById("camera-output");
 }
