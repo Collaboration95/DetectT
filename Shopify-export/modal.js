@@ -17,12 +17,6 @@ tf1Worker.onmessage = (e) => {
       console.error("Worker classification error:", data.error);
       workerClassificationResolve(false); // pass a "failed" to the awaiting Promise
     } else {
-      console.log(
-        "TM classification bestClass:",
-        data.bestClass,
-        "prob:",
-        data.probability
-      );
       // resolve the awaiting Promise with the classification
       workerClassificationResolve({
         className: data.bestClass,
@@ -374,18 +368,23 @@ document.addEventListener("DOMContentLoaded", async () => {
             DisplayFeedback("Detecting your pose..."); // Initial detection phase
             break;
           case "detecting_one":
-            // checking with checking if person in poseOne
+            const result = await collapsePose(canvas);
 
-            if (!(await isPoseOne(pose))) {
-              DisplayFeedback("Please match the silhoutte with your body");
+            if (!result.poseName || result.poseConfidence < 0.7) {
+              DisplayFeedback("Please match the silhouette with your body");
               return;
             } else {
-              console.log("Pose one detected");
+              console.log(
+                "Pose detected:",
+                result.poseName,
+                "Confidence:",
+                result.poseConfidence
+              );
             }
 
-            // analysisState.state = "ready_one";
-            // analysisState.validSince = now; // reset timer
-            // DisplayFeedback("Pose Detection in Progress , Remain Still");
+            analysisState.state = "ready_one";
+            analysisState.validSince = now; // reset timer
+            DisplayFeedback("Pose Detection in Progress , Remain Still");
             break;
           case "ready_one":
             DisplayFeedback("Taking photo now!");
@@ -990,18 +989,13 @@ function updateSilhouette(mode) {
 //   return best.className === "Pose_One" && best.probability >= 0.8;
 // }
 
-async function isPoseOne() {
-  console.log("isPoseOne is being called");
-  // 1) Grab RGBA data from #camera-output
-  const cameraOutput = document.getElementById("camera-output");
-  const ctx = cameraOutput.getContext("2d");
+async function collapsePose(cameraOutput) {
+  const ctx = cameraOutput.getContext("2d", { willReadFrequently: true });
   const { width, height } = cameraOutput;
 
   // Get the raw RGBA pixel data
   const imageData = ctx.getImageData(0, 0, width, height);
 
-  // 2) Send it to the worker
-  // We'll wrap this in a Promise that resolves when we get 'classification' back
   const result = await new Promise((resolve, reject) => {
     // store the resolver so we can call it in tf1Worker.onmessage
     workerClassificationResolve = resolve;
@@ -1022,7 +1016,8 @@ async function isPoseOne() {
   }
 
   // Example: Return true if best class is "Pose_One" with >= 0.8 probability
-  return result.className === "Pose_One" && result.probability >= 0.8;
+  // return result.className === "Pose_One" && result.probability >= 0.8;
+  return true;
 }
 function isPoseTwo(pose) {
   return true;

@@ -63,8 +63,6 @@ self.onmessage = async (e) => {
       // 3. Run classification
       const predictions = await tmModel.predict(posenetOutput);
 
-      console.log("Predictions:", predictions);
-
       // 4. Find best class
       let best = predictions.reduce((a, b) =>
         a.probability > b.probability ? a : b
