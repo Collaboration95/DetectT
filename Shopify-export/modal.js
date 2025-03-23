@@ -1,3 +1,5 @@
+import { drawPoint, connectPoints } from "./utils/drawUtils.js";
+
 const tf1Worker = new Worker("tf1-worker.js");
 tf1Worker.postMessage({ command: "version" });
 
@@ -277,8 +279,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     );
 
     // // hypothetical padding
-    const horizontalPadding = 10;
-    const verticalPadding = 10;
+    const horizontalPadding = 5;
+    const verticalPadding = 5;
     const left = horizontalPadding;
     const right = ctx.canvas.width - horizontalPadding;
     const top = verticalPadding;
@@ -450,7 +452,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             isClassifying = false;
             break;
 
-            break;
           case "ready_two":
             DisplayFeedback("Taking photo now!");
             // find a way to rename front and back for this function to name stuff properly
@@ -543,49 +544,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       0.99
     ); // High-quality JPEG (95%)
   }
-
-  // function uploadToFirebase(callback) {
-  //   const user = firebase.auth().currentUser;
-  //   if (!user) {
-  //     return callback(new Error("User is not authenticated"), null);
-  //   }
-  //   // Prevent duplicate uploads if already done or in progress.
-  //   if (uploadedInfo) {
-  //     return callback(null, "Already uploaded");
-  //   }
-  //   if (uploadInProgress) {
-  //     console.log("Upload already in progress; skipping duplicate upload.");
-  //     return;
-  //   }
-
-  //   console.log("Upload to firebase being called");
-  //   uploadInProgress = true;
-
-  //   // Create an array of promises for each image upload.
-  //   const uploadPromises = analysisState.imageBlobArray.map((imageObj) => {
-  //     const storageRef = storage.ref("photos/" + imageObj.filename);
-  //     // Upload the blob without getting the download URL
-  //     return storageRef.put(imageObj.blob).then((snapshot) => {
-  //       console.log("Uploaded photo:", snapshot);
-  //       // Just return confirmation of successful upload
-  //       return { filename: imageObj.filename, success: true };
-  //     });
-  //   });
-
-  //   // Wait for all upload promises to complete.
-  //   Promise.all(uploadPromises)
-  //     .then((results) => {
-  //       uploadedInfo = true;
-  //       uploadInProgress = false;
-  //       console.log("All images uploaded successfully:", results);
-  //       callback(null, results);
-  //     })
-  //     .catch((error) => {
-  //       console.error("Error uploading photo(s) to Firebase Storage:", error);
-  //       uploadInProgress = false;
-  //       callback(error);
-  //     });
-  // }
 
   function uploadToFirebase(callback) {
     const user = firebase.auth().currentUser;
@@ -901,23 +859,6 @@ function setupUI(
   });
 }
 
-// helper functions to draw stuff
-const drawPoint = (ctx, x, y, r, color) => {
-  ctx.beginPath();
-  ctx.arc(x, y, r, 0, 2 * Math.PI);
-  ctx.fillStyle = color;
-  ctx.fill();
-};
-
-const connectPoints = (ctx, aX, aY, bX, bY, linecolor, lineWidth) => {
-  ctx.beginPath();
-  ctx.moveTo(aX, aY);
-  ctx.lineTo(bX, bY);
-  ctx.strokeStyle = linecolor;
-  ctx.lineWidth = lineWidth;
-  ctx.stroke();
-};
-
 // rewrite updateSilhouette function to be parameter based instead of whatever this is , even toggleMethod is better than this
 // less readable and probably bad code
 function updateSilhouette(mode) {
@@ -946,82 +887,6 @@ function updateSilhouette(mode) {
       break;
   }
 }
-
-// function isPoseOne(pose) {
-
-//   return true;
-// }
-
-// async function isPoseOne(pose) {
-//   if (!tmModel) return false; // Safety check
-//   console.log("isPoseOne being called");
-
-//   // Get the video element (assumed to exist in your HTML)
-//   const video = document.getElementById("camera-preview");
-
-//   // Create an offscreen canvas and draw the current video frame on it.
-//   const offscreenCanvas = document.createElement("canvas");
-//   offscreenCanvas.width = video.videoWidth || video.width;
-//   offscreenCanvas.height = video.videoHeight || video.height;
-//   const offscreenCtx = offscreenCanvas.getContext("2d");
-//   offscreenCtx.drawImage(
-//     video,
-//     0,
-//     0,
-//     offscreenCanvas.width,
-//     offscreenCanvas.height
-//   );
-
-//   // Now use the offscreen canvas as input for the TM model.
-//   const { pose: tmPoseOutput, posenetOutput } =
-//     await tmModel.estimatePose(offscreenCanvas);
-
-//   // Step 2: Classify
-//   const predictions = await tmModel.predict(posenetOutput);
-
-//   // Step 3: Decide if the user is in “PoseOne”
-//   let best = predictions.reduce((a, b) =>
-//     a.probability > b.probability ? a : b
-//   );
-
-//   console.log(predictions);
-//   console.log(
-//     "PoseOne? Predicted:",
-//     best.className,
-//     best.probability.toFixed(2)
-//   );
-
-//   // Return true only if "Pose_One" is the top class with a high enough probability.
-//   return best.className === "Pose_One" && best.probability >= 0.8;
-// }
-
-// async function isPoseOne(pose) {
-//   console.log("isPoseOne being called");
-//   if (!tmModel) return false;
-
-//   // Get the same canvas that your code updates each frame
-//   const cameraOutput = document.getElementById("camera-output");
-
-//   // Estimate pose from that canvas
-//   const { pose: tmPoseOutput, posenetOutput } =
-//     await tmModel.estimatePose(cameraOutput);
-
-//   // Next, get classification predictions
-//   const predictions = await tmModel.predict(posenetOutput);
-
-//   // Find whichever class has the highest probability
-//   let best = predictions.reduce((a, b) =>
-//     a.probability > b.probability ? a : b
-//   );
-//   console.log(
-//     "Teachable Machine classification:",
-//     best.className,
-//     best.probability
-//   );
-
-//   // Example: Return true if "Pose_One" is top class with >= 0.8 probability
-//   return best.className === "Pose_One" && best.probability >= 0.8;
-// }
 
 async function collapsePose(cameraOutput) {
   const ctx = cameraOutput.getContext("2d", { willReadFrequently: true });
@@ -1055,23 +920,4 @@ async function collapsePose(cameraOutput) {
     poseName: result.className,
     poseConfidence: result.probability,
   };
-}
-
-function isPoseTwo(pose) {
-  return true;
-}
-
-// async function initTeachableMachineModel() {
-//   const modelURL = TM_URL + "model.json";
-//   const metadataURL = TM_URL + "metadata.json";
-
-//   // Load the Teachable Machine Pose model + metadata
-//   tmModel = await tmPose.load(modelURL, metadataURL);
-//   tmMaxPredictions = tmModel.getTotalClasses();
-
-//   console.log("Teachable Machine model loaded");
-// }
-
-function returnCanvasElement() {
-  return document.getElementById("camera-output");
 }
