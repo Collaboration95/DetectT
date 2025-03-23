@@ -10,27 +10,9 @@
     <script src="https://www.gstatic.com/firebasejs/11.3.1/firebase-analytics-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/11.3.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/11.3.1/firebase-storage-compat.js"></script>
-
-    <!-- Load a single, modern TFJS build -->
+    <!--Loading ML models  -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.9.0/dist/tf.min.js"></script>
-    <!-- <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script> -->
-    <!-- Load Pose Detection Model (MoveNet) -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
-    <!-- Load Teachable Machine Pose library -->
-    <!-- <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8/dist/teachablemachine-pose.min.js"></script> -->
-
-    <!-- <script type="module">
-      const tf4 = await import(
-        "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.15.0/dist/tf.min.js"
-      );
-      const tf3 = await import(
-        "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.20.0/dist/tf.min.js"
-      );
-      window.tf4 = tf4;
-      window.tf3 = tf3;
-    </script> -->
-
-    <!-- <script src="./modal.js" defer></script> -->
     <script type="module" src="./modal.js"></script>
   </head>
   <body>
@@ -41,7 +23,6 @@
           <button id="tab-fit" class="tab-button active">My Fit</button>
           <button id="tab-profile" class="tab-button">My Profile</button>
         </nav>
-
         <!-- Screen 1: "My Fit" -->
         <section id="screen-fit" class="tab-screen active">
           <h3>Your Size Is:</h3>
@@ -77,15 +58,8 @@
         </section>
       </div>
     </div>
-
     <!-- The button that opens the modal -->
     <button id="open-modal" class="open-modal-button">Find My Size</button>
   </body>
 </html>
-
-<!-- <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script> -->
-<!-- <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script> -->
 <!-- Replace the Liquid asset_url with a local reference to modal.js -->

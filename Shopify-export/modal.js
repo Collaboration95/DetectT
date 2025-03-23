@@ -37,24 +37,24 @@ firebase.initializeApp(firebaseConfig);
 let tmModel, tmMaxPredictions;
 
 // Sign in anonymously
-// firebase
-//   .auth()
-//   .signInAnonymously()
-//   .then(() => {
-//     console.log("Signed in anonymously");
-//   })
-//   .catch((error) => {
-//     console.error("Anonymous sign-in failed:", error);
-//   });
+firebase
+  .auth()
+  .signInAnonymously()
+  .then(() => {
+    console.log("Signed in anonymously");
+  })
+  .catch((error) => {
+    console.error("Anonymous sign-in failed:", error);
+  });
 
-// // Listen for auth state changes
-// firebase.auth().onAuthStateChanged((user) => {
-//   if (user) {
-//     console.log("User is authenticated, UID:", user.uid);
-//   } else {
-//     console.log("No user authenticated.");
-//   }
-// });
+// Listen for auth state changes
+firebase.auth().onAuthStateChanged((user) => {
+  if (user) {
+    console.log("User is authenticated, UID:", user.uid);
+  } else {
+    console.log("No user authenticated.");
+  }
+});
 
 // Get a reference to Firebase Storage
 var storage = firebase.storage();
@@ -208,7 +208,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   setupUI(elements, cameraController);
 
   function drawPose(poses) {
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
     // Mirror the canvas
     ctx.save();
     ctx.scale(-1, 1);
@@ -237,6 +237,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const REQUIRED_TIME = 3000;
+
+  let isClassifying = false;
 
   const analysePose = async (pose, ctx) => {
     //dev version
@@ -294,7 +296,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // pre loop check 2 : Photo taking process completed but need to upload the photo to firebase
     if (analysisState.state === "upload_photo") {
       // Need to upload photos to firebase , no need to traverse through FSM
-      console.log("Uploading photos to firebase");
+
       DisplayFeedback("Uploading photos to firebase");
 
       updateSilhouette("disable");
@@ -367,25 +369,36 @@ document.addEventListener("DOMContentLoaded", async () => {
             updateSilhouette("start");
             DisplayFeedback("Detecting your pose..."); // Initial detection phase
             break;
+          // Outside the loop, define a flag
+
           case "detecting_one":
+            if (isClassifying) {
+              // Skip this iteration if a classification is already running
+              break;
+            }
+            isClassifying = true;
+
+            // DisplayFeedback("Pose Detection in Progress, Remain Still");
             const result = await collapsePose(canvas);
 
-            if (!result.poseName || result.poseConfidence < 0.7) {
-              DisplayFeedback("Please match the silhouette with your body");
-              return;
+            if (
+              result.poseName === "Front-view" &&
+              result.poseConfidence > 0.7
+            ) {
+              DisplayFeedback("Pose Detected , Taking photo stand still");
+              analysisState.state = "ready_one";
+              analysisState.validSince = now; // reset timer
             } else {
-              console.log(
-                "Pose detected:",
-                result.poseName,
-                "Confidence:",
-                result.poseConfidence
-              );
+              DisplayFeedback("Please match the silhouette with your body");
+              console.log("Result is ", result.poseName);
+              // Optionally, you could set isClassifying = false here if you want to allow retry immediately
+              isClassifying = false;
+              return;
             }
 
-            analysisState.state = "ready_one";
-            analysisState.validSince = now; // reset timer
-            DisplayFeedback("Pose Detection in Progress , Remain Still");
+            isClassifying = false;
             break;
+
           case "ready_one":
             DisplayFeedback("Taking photo now!");
 
@@ -411,14 +424,32 @@ document.addEventListener("DOMContentLoaded", async () => {
             updateSilhouette("start_2");
             break;
           case "detecting_two":
-            if (!isPoseTwo(pose)) {
-              DisplayFeedback("Please match the silhoutte with your body");
+            if (isClassifying) {
+              // Skip this iteration if a classification is already running
+              break;
+            }
+            isClassifying = true;
+
+            // DisplayFeedback("Pose Detection in Progress, Remain Still");
+            const result2 = await collapsePose(canvas);
+
+            if (
+              result2.poseName === "side-view" &&
+              result2.poseConfidence > 0.7
+            ) {
+              DisplayFeedback("Pose Detected , Taking photo stand still");
+              analysisState.state = "ready_two";
+              analysisState.validSince = now; // reset timer
+            } else {
+              DisplayFeedback("Please match the silhouette with your body");
+              // Optionally, you could set isClassifying = false here if you want to allow retry immediately
+              isClassifying = false;
               return;
             }
-            // if pose is correct
-            analysisState.state = "ready_two";
-            analysisState.validSince = now; // reset timer
-            DisplayFeedback("Good! Hold that pose for a moment...");
+
+            isClassifying = false;
+            break;
+
             break;
           case "ready_two":
             DisplayFeedback("Taking photo now!");
@@ -453,9 +484,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             break;
         }
       } else {
-        console.log(
-          "Not enough valid frames yet" + now - analysisState.validSince
-        );
+        // console.log(
+        //   "Not enough valid frames yet" + now - analysisState.validSince
+        // );
         const msg = "Detection in Progress , Remain Still";
         if (analysisState.lastFeedback !== msg) {
           DisplayFeedback(msg);
@@ -484,7 +515,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     tempCanvas.height = video.videoHeight;
 
     // Draw the current video frame
-    const ctx = tempCanvas.getContext("2d");
+    const ctx = tempCanvas.getContext("2d", { willReadFrequently: true });
     ctx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
 
     // Create a timestamped filename (for logging purposes only)
@@ -513,48 +544,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     ); // High-quality JPEG (95%)
   }
 
-  function uploadToFirebase(callback) {
-    const user = firebase.auth().currentUser;
-    if (!user) {
-      return callback(new Error("User is not authenticated"), null);
-    }
-    // Prevent duplicate uploads if already done or in progress.
-    if (uploadedInfo) {
-      return callback(null, "Already uploaded");
-    }
-    if (uploadInProgress) {
-      console.log("Upload already in progress; skipping duplicate upload.");
-      return;
-    }
-
-    uploadInProgress = true;
-
-    // Create an array of promises for each image upload.
-    const uploadPromises = analysisState.imageBlobArray.map((imageObj) => {
-      const storageRef = storage.ref("photos/" + imageObj.filename);
-      // Upload the blob without getting the download URL
-      return storageRef.put(imageObj.blob).then((snapshot) => {
-        console.log("Uploaded photo:", snapshot);
-        // Just return confirmation of successful upload
-        return { filename: imageObj.filename, success: true };
-      });
-    });
-
-    // Wait for all upload promises to complete.
-    Promise.all(uploadPromises)
-      .then((results) => {
-        uploadedInfo = true;
-        uploadInProgress = false;
-        console.log("All images uploaded successfully:", results);
-        callback(null, results);
-      })
-      .catch((error) => {
-        console.error("Error uploading photo(s) to Firebase Storage:", error);
-        uploadInProgress = false;
-        callback(error);
-      });
-  }
-
   // function uploadToFirebase(callback) {
   //   const user = firebase.auth().currentUser;
   //   if (!user) {
@@ -569,27 +558,27 @@ document.addEventListener("DOMContentLoaded", async () => {
   //     return;
   //   }
 
+  //   console.log("Upload to firebase being called");
   //   uploadInProgress = true;
 
   //   // Create an array of promises for each image upload.
-
   //   const uploadPromises = analysisState.imageBlobArray.map((imageObj) => {
   //     const storageRef = storage.ref("photos/" + imageObj.filename);
-  //     // Upload the blob.
+  //     // Upload the blob without getting the download URL
   //     return storageRef.put(imageObj.blob).then((snapshot) => {
   //       console.log("Uploaded photo:", snapshot);
-  //       // Return the download URL.
-  //       return storageRef.getDownloadURL();
+  //       // Just return confirmation of successful upload
+  //       return { filename: imageObj.filename, success: true };
   //     });
   //   });
 
   //   // Wait for all upload promises to complete.
   //   Promise.all(uploadPromises)
-  //     .then((downloadURLs) => {
+  //     .then((results) => {
   //       uploadedInfo = true;
   //       uploadInProgress = false;
-  //       console.log("All images uploaded. Download URLs:", downloadURLs);
-  //       callback(null, downloadURLs);
+  //       console.log("All images uploaded successfully:", results);
+  //       callback(null, results);
   //     })
   //     .catch((error) => {
   //       console.error("Error uploading photo(s) to Firebase Storage:", error);
@@ -598,9 +587,48 @@ document.addEventListener("DOMContentLoaded", async () => {
   //     });
   // }
 
-  const DisplayFeedback = (message) => {
-    userFeedback.innerHTML = message;
-  };
+  function uploadToFirebase(callback) {
+    const user = firebase.auth().currentUser;
+    if (!user) {
+      return callback(new Error("User is not authenticated"), null);
+    }
+    // Prevent duplicate uploads if already done or in progress.
+    if (uploadedInfo) {
+      return callback(null, "Already uploaded");
+    }
+    if (uploadInProgress) {
+      console.log("Upload already in progress; skipping duplicate upload.");
+      return;
+    }
+    console.log("Upload to firebase being called");
+    uploadInProgress = true;
+
+    // Create an array of promises for each image upload.
+
+    const uploadPromises = analysisState.imageBlobArray.map((imageObj) => {
+      const storageRef = storage.ref("photos/" + imageObj.filename);
+      // Upload the blob.
+      return storageRef.put(imageObj.blob).then((snapshot) => {
+        console.log("Uploaded photo:", snapshot);
+        // Return the download URL.
+        return storageRef.getDownloadURL();
+      });
+    });
+
+    // Wait for all upload promises to complete.
+    Promise.all(uploadPromises)
+      .then((downloadURLs) => {
+        uploadedInfo = true;
+        uploadInProgress = false;
+        console.log("All images uploaded. Download URLs:", downloadURLs);
+        callback(null, downloadURLs);
+      })
+      .catch((error) => {
+        console.error("Error uploading photo(s) to Firebase Storage:", error);
+        uploadInProgress = false;
+        callback(error);
+      });
+  }
 
   const drawSkeleton = (pose, ctx) => {
     const minConfidence = 0.6;
@@ -769,6 +797,12 @@ function initalizeElements() {
     captureButton,
     silhouette,
   };
+}
+
+//global DisplayFeedback function
+function DisplayFeedback(message) {
+  const userFeedback = document.getElementById("user-feedback");
+  userFeedback.innerHTML = message;
 }
 
 function setupUI(
@@ -991,6 +1025,7 @@ function updateSilhouette(mode) {
 
 async function collapsePose(cameraOutput) {
   const ctx = cameraOutput.getContext("2d", { willReadFrequently: true });
+
   const { width, height } = cameraOutput;
 
   // Get the raw RGBA pixel data
@@ -1012,13 +1047,16 @@ async function collapsePose(cameraOutput) {
 
   if (!result || !result.className) {
     console.error("Worker classification failed, or no result");
-    return false;
+    return { poseName: null, poseConfidence: 0 };
   }
 
-  // Example: Return true if best class is "Pose_One" with >= 0.8 probability
-  // return result.className === "Pose_One" && result.probability >= 0.8;
-  return true;
+  // ✅ Return an object with the pose name and its confidence score
+  return {
+    poseName: result.className,
+    poseConfidence: result.probability,
+  };
 }
+
 function isPoseTwo(pose) {
   return true;
 }
