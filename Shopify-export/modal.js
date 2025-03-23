@@ -1,4 +1,5 @@
-import { drawPoint, connectPoints } from "./utils/drawUtils.js";
+import { drawSkeleton } from "./utils/drawUtils.js";
+import { initFirebase, uploadToFirebase } from "./utils/firebaseUtils.js";
 
 const tf1Worker = new Worker("tf1-worker.js");
 tf1Worker.postMessage({ command: "version" });
@@ -31,35 +32,9 @@ tf1Worker.onmessage = (e) => {
 let workerClassificationResolve = null;
 
 var uploadedInfo = false;
-let uploadInProgress = false;
 
 // Initialize Firebase using the compat method
-firebase.initializeApp(firebaseConfig);
-
-let tmModel, tmMaxPredictions;
-
-// Sign in anonymously
-firebase
-  .auth()
-  .signInAnonymously()
-  .then(() => {
-    console.log("Signed in anonymously");
-  })
-  .catch((error) => {
-    console.error("Anonymous sign-in failed:", error);
-  });
-
-// Listen for auth state changes
-firebase.auth().onAuthStateChanged((user) => {
-  if (user) {
-    console.log("User is authenticated, UID:", user.uid);
-  } else {
-    console.log("No user authenticated.");
-  }
-});
-
-// Get a reference to Firebase Storage
-var storage = firebase.storage();
+initFirebase(firebaseConfig);
 
 document.addEventListener("DOMContentLoaded", async () => {
   const elements = initalizeElements();
@@ -225,7 +200,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     ctx.restore();
     video.display = "none";
     poses.forEach((pose) => {
-      drawSkeleton(pose, ctx);
+      drawSkeleton(pose, ctx, video);
       analysePose(pose, ctx);
     });
   }
@@ -236,6 +211,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     lastFeedback: "", // to store the last feedback message (optional)
     imageBlobArray: [],
     photosTaken: 0,
+    uploadInProgress: false,
   };
 
   const REQUIRED_TIME = 3000;
@@ -298,20 +274,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     // pre loop check 2 : Photo taking process completed but need to upload the photo to firebase
     if (analysisState.state === "upload_photo") {
       // Need to upload photos to firebase , no need to traverse through FSM
-
       DisplayFeedback("Uploading photos to firebase");
 
       updateSilhouette("disable");
 
-      uploadToFirebase(function (err, results) {
+      uploadToFirebase(analysisState, (err, results) => {
         if (err) {
           console.error("Upload failed:", err);
         } else {
-          console.log("All images uploaded successfully:", results);
+          console.log("Upload completed, download URLs:", results);
           analysisState.state = "final_state";
           DisplayFeedback("Photo upload completed successfully  ");
         }
       });
+
       return;
     } else if (analysisState.state === "final_state") {
       DisplayFeedback("Measurement Process has been completed");
@@ -545,163 +521,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     ); // High-quality JPEG (95%)
   }
 
-  function uploadToFirebase(callback) {
-    const user = firebase.auth().currentUser;
-    if (!user) {
-      return callback(new Error("User is not authenticated"), null);
-    }
-    // Prevent duplicate uploads if already done or in progress.
-    if (uploadedInfo) {
-      return callback(null, "Already uploaded");
-    }
-    if (uploadInProgress) {
-      console.log("Upload already in progress; skipping duplicate upload.");
-      return;
-    }
-    console.log("Upload to firebase being called");
-    uploadInProgress = true;
-
-    // Create an array of promises for each image upload.
-
-    const uploadPromises = analysisState.imageBlobArray.map((imageObj) => {
-      const storageRef = storage.ref("photos/" + imageObj.filename);
-      // Upload the blob.
-      return storageRef.put(imageObj.blob).then((snapshot) => {
-        console.log("Uploaded photo:", snapshot);
-        // Return the download URL.
-        return storageRef.getDownloadURL();
-      });
-    });
-
-    // Wait for all upload promises to complete.
-    Promise.all(uploadPromises)
-      .then((downloadURLs) => {
-        uploadedInfo = true;
-        uploadInProgress = false;
-        console.log("All images uploaded. Download URLs:", downloadURLs);
-        callback(null, downloadURLs);
-      })
-      .catch((error) => {
-        console.error("Error uploading photo(s) to Firebase Storage:", error);
-        uploadInProgress = false;
-        callback(error);
-      });
-  }
-
-  const drawSkeleton = (pose, ctx) => {
-    const minConfidence = 0.6;
-
-    // Helper function to flip and scale coordinates
-    const transformPoint = (x, y) => {
-      return {
-        x: (ctx.canvas.width - x) * (ctx.canvas.width / video.videoWidth),
-        y: y * (ctx.canvas.height / video.videoHeight),
-      };
-    };
-
-    const getMidpoint = (a, b) => {
-      return {
-        x: (a.x + b.x) / 2,
-        y: (a.y + b.y) / 2,
-      };
-    };
-
-    // Draw keypoints with transformation applied
-    pose.keypoints.forEach((keypoint) => {
-      if (keypoint.score >= minConfidence) {
-        const { x, y } = transformPoint(keypoint.x, keypoint.y);
-        drawPoint(ctx, x, y, 5, "red");
-      }
-    });
-
-    // Helper to find a specific keypoint
-    const getKeypoint = (name) => {
-      return pose.keypoints.find((kp) => kp.name === name);
-    };
-
-    const leftShoulder = getKeypoint("left_shoulder");
-    const rightShoulder = getKeypoint("right_shoulder");
-    const leftHip = getKeypoint("left_hip");
-    const rightHip = getKeypoint("right_hip");
-
-    if (leftShoulder && rightShoulder) {
-      const leftShoulderT = transformPoint(leftShoulder.x, leftShoulder.y);
-      const rightShoulderT = transformPoint(rightShoulder.x, rightShoulder.y);
-      const midPointShoulder = getMidpoint(leftShoulderT, rightShoulderT);
-      drawPoint(ctx, midPointShoulder.x, midPointShoulder.y, 5, "green");
-
-      if (leftHip && rightHip) {
-        const leftHipT = transformPoint(leftHip.x, leftHip.y);
-        const rightHipT = transformPoint(rightHip.x, rightHip.y);
-        const midPointHip = getMidpoint(leftHipT, rightHipT);
-
-        drawPoint(ctx, midPointHip.x, midPointHip.y, 5, "green");
-
-        // Connect the midpoints of shoulders and hips
-        connectPoints(
-          ctx,
-          midPointShoulder.x,
-          midPointShoulder.y,
-          midPointHip.x,
-          midPointHip.y,
-          "green",
-          2
-        );
-      } else {
-        console.log("hips not detected");
-      }
-    } else {
-      console.log("shoulders not detected");
-    }
-
-    // Define connections to draw between keypoints
-    const connections = [
-      ["left_shoulder", "right_shoulder"],
-      ["left_shoulder", "left_elbow"],
-      ["left_elbow", "left_wrist"],
-      ["right_shoulder", "right_elbow"],
-      ["right_elbow", "right_wrist"],
-      ["left_shoulder", "left_hip"],
-      ["right_shoulder", "right_hip"],
-      ["left_hip", "right_hip"],
-      ["left_hip", "left_knee"],
-      ["left_knee", "left_ankle"],
-      ["right_hip", "right_knee"],
-      ["right_knee", "right_ankle"],
-    ];
-    // decide on this later
-
-    // const horizontalPadding = 50;
-    // const verticalPadding = 50;
-    // const leftBound = horizontalPadding;
-    // const rightBound = ctx.canvas.width - horizontalPadding;
-    // const topBound = verticalPadding;
-    // const bottomBound = ctx.canvas.height - verticalPadding;
-
-    // ctx.beginPath();
-    // // Here we mirror the x-coordinate of the right bound.
-    // ctx.rect(
-    //   ctx.canvas.width - rightBound,
-    //   topBound,
-    //   rightBound - leftBound,
-    //   bottomBound - topBound
-    // );
-    // ctx.strokeStyle = "green";
-    // ctx.lineWidth = 2;
-    // ctx.stroke();
-
-    // Draw connections between keypoints with transformation applied
-    connections.forEach(([partA, partB]) => {
-      const a = getKeypoint(partA);
-      const b = getKeypoint(partB);
-      if (a && b && a.score >= minConfidence && b.score >= minConfidence) {
-        const aT = transformPoint(a.x, a.y);
-        const bT = transformPoint(b.x, b.y);
-        connectPoints(ctx, aT.x, aT.y, bT.x, bT.y, "blue", 2);
-      }
-    });
-  };
-
   captureButton.addEventListener("click", () => {
     // depreciated method
     canvas.width = video.videoWidth;
@@ -915,7 +734,6 @@ async function collapsePose(cameraOutput) {
     return { poseName: null, poseConfidence: 0 };
   }
 
-  // ✅ Return an object with the pose name and its confidence score
   return {
     poseName: result.className,
     poseConfidence: result.probability,
