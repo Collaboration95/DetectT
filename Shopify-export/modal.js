@@ -1,5 +1,6 @@
 import { drawSkeleton } from "./utils/drawUtils.js";
 import { initFirebase, uploadToFirebase } from "./utils/firebaseUtils.js";
+import { initializePoseDetector, estimatePoses } from "./utils/poseDetector.js";
 
 const tf1Worker = new Worker("tf1-worker.js");
 tf1Worker.postMessage({ command: "version" });
@@ -64,22 +65,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   let isDetecting = false;
   let isReady = false;
 
-  // Load TensorFlow and Pose Detector
-  async function initializePoseDetector() {
-    await tf.ready();
-    await tf.setBackend("webgl");
-    detector = await poseDetection.createDetector(
-      poseDetection.SupportedModels.MoveNet,
-      {
-        modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING,
-      }
-    );
-
-    console.log("Pose detector has been initialzed:", detector);
-  }
-
-  // await initTeachableMachineModel();
-
   // init the model
   tf1Worker.postMessage({
     command: "LOAD_MODEL",
@@ -90,9 +75,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   async function startPoseDetection() {
-    if (!detector) await initializePoseDetector();
+    if (!detector) {
+      detector = await initializePoseDetector();
+    }
     isReady = true;
-    // detectPose();
+    // Once the detector is ready, start the detection loop.
     requestAnimationFrame(detectPose);
   }
 
@@ -117,9 +104,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     lastTime = timestamp;
 
     try {
-      const poses = await detector.estimatePoses(video, {
-        flipHorizontal: false,
-      });
+      const poses = await estimatePoses(detector, video);
       drawPose(poses);
     } catch (error) {
       console.error("Error in pose estimation:", error);
