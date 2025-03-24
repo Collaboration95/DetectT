@@ -72,7 +72,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     try {
       const poses = await estimatePoses(detector, video);
-      drawPose(poses);
+
+      drawPose(canvas, video, poses);
     } catch (error) {
       console.error("Error in pose estimation:", error);
     }
@@ -136,7 +137,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   setupUI(elements, cameraController);
 
-  function drawPose(poses) {
+  function drawPose(canvas, video, poses) {
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     // Mirror the canvas
     ctx.save();
