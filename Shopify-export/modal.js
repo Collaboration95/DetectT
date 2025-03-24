@@ -1,36 +1,37 @@
 import { drawSkeleton } from "./utils/drawUtils.js";
 import { initFirebase, uploadToFirebase } from "./utils/firebaseUtils.js";
 import { initializePoseDetector, estimatePoses } from "./utils/poseDetector.js";
+import { loadModel, classifyFrame } from "./utils/workerManager.js";
 
-const tf1Worker = new Worker("tf1-worker.js");
-tf1Worker.postMessage({ command: "version" });
+// const tf1Worker = new Worker("tf1-worker.js");
+// tf1Worker.postMessage({ command: "version" });
 
-tf1Worker.onmessage = (e) => {
-  const data = e.data;
-  if (data.type === "version") {
-    console.log("TF1 worker version:", data.version);
-  } else if (data.type === "model_loaded") {
-    if (data.success) {
-      console.log("Teachable Machine model loaded in worker");
-    } else {
-      console.error("Failed to load model in worker:", data.error);
-    }
-  } else if (data.type === "classification") {
-    // The worker has returned a classification
-    if (data.error) {
-      console.error("Worker classification error:", data.error);
-      workerClassificationResolve(false); // pass a "failed" to the awaiting Promise
-    } else {
-      // resolve the awaiting Promise with the classification
-      workerClassificationResolve({
-        className: data.bestClass,
-        probability: data.probability,
-      });
-    }
-  }
-};
+// tf1Worker.onmessage = (e) => {
+//   const data = e.data;
+//   if (data.type === "version") {
+//     console.log("TF1 worker version:", data.version);
+//   } else if (data.type === "model_loaded") {
+//     if (data.success) {
+//       console.log("Teachable Machine model loaded in worker");
+//     } else {
+//       console.error("Failed to load model in worker:", data.error);
+//     }
+//   } else if (data.type === "classification") {
+//     // The worker has returned a classification
+//     if (data.error) {
+//       console.error("Worker classification error:", data.error);
+//       workerClassificationResolve(false); // pass a "failed" to the awaiting Promise
+//     } else {
+//       // resolve the awaiting Promise with the classification
+//       workerClassificationResolve({
+//         className: data.bestClass,
+//         probability: data.probability,
+//       });
+//     }
+//   }
+// };
 
-let workerClassificationResolve = null;
+// let workerClassificationResolve = null;
 
 var uploadedInfo = false;
 
@@ -65,14 +66,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   let isDetecting = false;
   let isReady = false;
 
+  loadModel(TM_URL + "model.json", TM_URL + "metadata.json");
   // init the model
-  tf1Worker.postMessage({
-    command: "LOAD_MODEL",
-    data: {
-      modelURL: TM_URL + "model.json",
-      metadataURL: TM_URL + "metadata.json",
-    },
-  });
+  // tf1Worker.postMessage({
+  //   command: "LOAD_MODEL",
+  //   data: {
+  //     modelURL: TM_URL + "model.json",
+  //     metadataURL: TM_URL + "metadata.json",
+  //   },
+  // });
 
   async function startPoseDetection() {
     if (!detector) {
@@ -141,7 +143,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           startPoseDetection();
           captureButton.style.display = "";
           startButton.style.display = "none";
-          console.log(video.videoWidth, video.videoHeight);
+          // console.log(video.videoWidth, video.videoHeight);
           canvas.width = video.videoWidth;
           canvas.height = video.videoHeight;
         };
@@ -692,33 +694,50 @@ function updateSilhouette(mode) {
   }
 }
 
-async function collapsePose(cameraOutput) {
-  const ctx = cameraOutput.getContext("2d", { willReadFrequently: true });
+// async function collapsePose(cameraOutput) {
+//   const ctx = cameraOutput.getContext("2d", { willReadFrequently: true });
 
-  const { width, height } = cameraOutput;
+//   const { width, height } = cameraOutput;
 
-  // Get the raw RGBA pixel data
+//   // Get the raw RGBA pixel data
+//   const imageData = ctx.getImageData(0, 0, width, height);
+
+//   const result = await new Promise((resolve, reject) => {
+//     // store the resolver so we can call it in tf1Worker.onmessage
+//     workerClassificationResolve = resolve;
+
+//     tf1Worker.postMessage({
+//       command: "CLASSIFY_FRAME",
+//       data: {
+//         width,
+//         height,
+//         buffer: imageData.data.buffer, // pass ArrayBuffer from typed array
+//       },
+//     });
+//   });
+
+//   if (!result || !result.className) {
+//     console.error("Worker classification failed, or no result");
+//     return { poseName: null, poseConfidence: 0 };
+//   }
+
+//   return {
+//     poseName: result.className,
+//     poseConfidence: result.probability,
+//   };
+// }
+
+async function collapsePose(canvas) {
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  const { width, height } = canvas;
+  // Get the raw RGBA pixel data from the canvas
   const imageData = ctx.getImageData(0, 0, width, height);
 
-  const result = await new Promise((resolve, reject) => {
-    // store the resolver so we can call it in tf1Worker.onmessage
-    workerClassificationResolve = resolve;
-
-    tf1Worker.postMessage({
-      command: "CLASSIFY_FRAME",
-      data: {
-        width,
-        height,
-        buffer: imageData.data.buffer, // pass ArrayBuffer from typed array
-      },
-    });
-  });
-
+  const result = await classifyFrame(width, height, imageData.data.buffer);
   if (!result || !result.className) {
     console.error("Worker classification failed, or no result");
     return { poseName: null, poseConfidence: 0 };
   }
-
   return {
     poseName: result.className,
     poseConfidence: result.probability,
