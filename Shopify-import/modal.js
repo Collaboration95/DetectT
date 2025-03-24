@@ -1,3 +1,7 @@
+// cameraScan Functionality
+import { initFirebase, uploadToFirebase } from "./utils/firebaseUtils.js";
+import { firebaseConfig, TM_URL } from "./utils/env.js";
+initFirebase(firebaseConfig);
 //array to store screen id
 
 //variable storage for user
@@ -414,6 +418,8 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   updateActiveSlide();
+
+  // CameraScan Code
 });
 
 // UI helper functions

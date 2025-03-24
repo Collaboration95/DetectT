@@ -6,6 +6,10 @@
     <title>Fitback local</title>
     <link rel="stylesheet" href="./styles/modal.css" />
     <link rel="stylesheet" href="./styles/glider.min.css" />
+    <script src="https://www.gstatic.com/firebasejs/11.3.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.3.1/firebase-analytics-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.3.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.3.1/firebase-storage-compat.js"></script>
   </head>
   <body id="fitback-recommendation">
     <div id="modal-overlay" class="modal-overlay hidden">
@@ -363,6 +367,6 @@
     <button id="open-modal" class="open-modal-button">Find My Size</button>
 
   <script src="glider.min.js" defer></script>
-  <script src="modal.js" defer></script>
+  <script type="module" src="modal.js" defer></script>
 </body>
 </html>
