@@ -16,9 +16,52 @@ let torso = 0;
 let thigh = 0;
 
 document.addEventListener("DOMContentLoaded", () => {
+  const elements = initializeElements();
+  const {
+    overlay,
+    mainContent,
+    openButton,
+    onboardWelcome,
+    onboardUserInput,
+    onboardCameraPrompt,
+    onboardCameraGuidelines,
+    onboardCameraPosition,
+    recommendationContent,
+    CameraScan,
+    userDetailForm,
+    onboardWelcomeNext,
+    onboardUserInputNext,
+    onboardCameraPromptNext,
+    onboardCameraPromptManual,
+    onboardCameraGuidelinesNext,
+    onboardCameraPositionNext,
+    CameraScanNext,
+    genderInput,
+    heightInput,
+    weightInput,
+    ageInput,
+    sizingCardContainer,
+    screenFit,
+    screenProfile,
+    screenProfileMeasurementDetails,
+    screenProfileMeasurementEdit,
+    userMeasurementForm,
+    tabFitBtn,
+    tabProfileBtn,
+    profileEditMeasurementBtn,
+    profileMeasurementManualConfirmChangeBtn,
+    shoulderInput,
+    chestInput,
+    hipInput,
+    waistInput,
+    torsoInput,
+    armInput,
+    legInput,
+    thighInput,
+  } = elements;
+
   /*-------------------SETUPS------------------*/
   // 1. Grab references to all your elements
-  const overlay = document.getElementById("modal-overlay");
   // -- NEW: Append overlay to <body> so it's not nested in a limiting container --
   document.body.appendChild(overlay);
 
@@ -39,15 +82,6 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   //helper functions
-  const showElement = (ele) => {
-    ele.classList.add("visible");
-    ele.classList.remove("hidden");
-  };
-
-  const hideElement = (ele) => {
-    ele.classList.add("hidden");
-    ele.classList.remove("visible");
-  };
 
   const saveProfileMeasurementDetails = (
     measurementInputArray,
@@ -127,9 +161,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   };
 
-  const mainContent = document.getElementById("modal-content");
-  const openButton = document.getElementById("open-modal");
-
   // 4. Event handlers: open/close the modal
   openButton.addEventListener("click", () => {
     overlay.classList.remove("hidden");
@@ -148,24 +179,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  /*-------------------ONBOARDING------------------*/
-
-  //Grab reference to screenIds
-  const onboardWelcome = document.getElementById("onboard-welcome");
-  const onboardUserInput = document.getElementById("onboard-user-input");
-  const onboardCameraPrompt = document.getElementById("onboard-camera-prompt");
-  const onboardCameraGuidelines = document.getElementById(
-    "onboard-camera-guidelines"
-  );
-  const onboardCameraPosition = document.getElementById(
-    "onboard-camera-position"
-  );
-  const recommendationContent = document.getElementById(
-    "recommendation-content"
-  );
-
-  const userDetailForm = document.getElementById("user-detail-form");
-
   //store as array
   const onboardScreensArray = [
     onboardWelcome,
@@ -173,28 +186,10 @@ document.addEventListener("DOMContentLoaded", () => {
     onboardCameraPrompt,
     onboardCameraGuidelines,
     onboardCameraPosition,
+    CameraScan,
     recommendationContent,
   ];
 
-  //Grab reference to buttons
-  const onboardWelcomeNext = document.getElementById("onboard-welcome-next");
-  const onboardUserInputNext = document.getElementById(
-    "onboard-user-input-next"
-  );
-
-  const onboardCameraPromptNext = document.getElementById(
-    "onboard-camera-prompt-next"
-  );
-  const onboardCameraPromptManual = document.getElementById(
-    "onboard-camera-prompt-manual"
-  );
-
-  const onboardCameraGuidelinesNext = document.getElementById(
-    "onboard-camera-guidelines-next"
-  );
-  const onboardCameraPositionNext = document.getElementById(
-    "onboard-camera-position-next"
-  );
   //store as array
   const onboardNextBtnsArray = [
     onboardWelcomeNext,
@@ -202,6 +197,7 @@ document.addEventListener("DOMContentLoaded", () => {
     onboardCameraPromptNext,
     onboardCameraGuidelinesNext,
     onboardCameraPositionNext,
+    CameraScanNext,
   ];
   //EVENTS
 
@@ -246,47 +242,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  //onboarding inputs
-  const genderInput = document.getElementById("gender-input");
-  const heightInput = document.getElementById("height-input");
-  const weightInput = document.getElementById("weight-input");
-  const ageInput = document.getElementById("age-input");
-
   const userDetailArray = [genderInput, heightInput, weightInput, ageInput];
   //Grab References to pose figure
   //ask tristan and lucas
-
-  /*----------------Recommendation-------------------*/
-  const sizingCardContainer = document.getElementById("sizing-cards-container");
-  const screenFit = document.getElementById("screen-fit");
-  const screenProfile = document.getElementById("screen-profile");
-  const screenProfileMeasurementDetails = document.getElementById(
-    "screen-profile-measurement-details"
-  );
-  const screenProfileMeasurementEdit = document.getElementById(
-    "screen-profile-measurement-edit"
-  );
-
-  const userMeasurementForm = document.getElementById("user-measurement-form");
-
-  const tabFitBtn = document.getElementById("tab-fit-btn");
-  const tabProfileBtn = document.getElementById("tab-profile-btn");
-  const profileEditMeasurementBtn = document.getElementById(
-    "profile-edit-measurement-btn"
-  );
-  const profileMeasurementManualConfirmChangeBtn = document.getElementById(
-    "profile-measurement-manual-confirm-change-btn"
-  );
-
-  //measurement inputs
-  const shoulderInput = document.getElementById("shoulder-input");
-  const chestInput = document.getElementById("chest-input");
-  const hipInput = document.getElementById("hip-input");
-  const waistInput = document.getElementById("waist-input");
-  const torsoInput = document.getElementById("torso-input");
-  const armInput = document.getElementById("arm-input");
-  const legInput = document.getElementById("leg-input");
-  const thighInput = document.getElementById("thigh-input");
 
   const recommendationScreenArray = [
     screenFit,
@@ -457,3 +415,142 @@ document.addEventListener("DOMContentLoaded", () => {
 
   updateActiveSlide();
 });
+
+// UI helper functions
+const showElement = (ele) => {
+  ele.classList.add("visible");
+  ele.classList.remove("hidden");
+};
+
+const hideElement = (ele) => {
+  ele.classList.add("hidden");
+  ele.classList.remove("visible");
+};
+
+function initializeElements() {
+  const overlay = document.getElementById("modal-overlay");
+  const mainContent = document.getElementById("modal-content");
+  const openButton = document.getElementById("open-modal");
+
+  /*-------------------ONBOARDING------------------*/
+
+  //Grab reference to screenIds
+  const onboardWelcome = document.getElementById("onboard-welcome");
+  const onboardUserInput = document.getElementById("onboard-user-input");
+  const onboardCameraPrompt = document.getElementById("onboard-camera-prompt");
+  const onboardCameraGuidelines = document.getElementById(
+    "onboard-camera-guidelines"
+  );
+  const onboardCameraPosition = document.getElementById(
+    "onboard-camera-position"
+  );
+  const recommendationContent = document.getElementById(
+    "recommendation-content"
+  );
+
+  const CameraScan = document.getElementById("CameraScan");
+
+  const userDetailForm = document.getElementById("user-detail-form");
+
+  //Grab reference to buttons
+  const onboardWelcomeNext = document.getElementById("onboard-welcome-next");
+  const onboardUserInputNext = document.getElementById(
+    "onboard-user-input-next"
+  );
+
+  const onboardCameraPromptNext = document.getElementById(
+    "onboard-camera-prompt-next"
+  );
+  const onboardCameraPromptManual = document.getElementById(
+    "onboard-camera-prompt-manual"
+  );
+
+  const onboardCameraGuidelinesNext = document.getElementById(
+    "onboard-camera-guidelines-next"
+  );
+  const onboardCameraPositionNext = document.getElementById(
+    "onboard-camera-position-next"
+  );
+  const CameraScanNext = document.getElementById("CameraScan-next");
+
+  //onboarding inputs
+  const genderInput = document.getElementById("gender-input");
+  const heightInput = document.getElementById("height-input");
+  const weightInput = document.getElementById("weight-input");
+  const ageInput = document.getElementById("age-input");
+
+  /*----------------Recommendation-------------------*/
+  const sizingCardContainer = document.getElementById("sizing-cards-container");
+  const screenFit = document.getElementById("screen-fit");
+  const screenProfile = document.getElementById("screen-profile");
+  const screenProfileMeasurementDetails = document.getElementById(
+    "screen-profile-measurement-details"
+  );
+  const screenProfileMeasurementEdit = document.getElementById(
+    "screen-profile-measurement-edit"
+  );
+
+  const userMeasurementForm = document.getElementById("user-measurement-form");
+
+  const tabFitBtn = document.getElementById("tab-fit-btn");
+  const tabProfileBtn = document.getElementById("tab-profile-btn");
+  const profileEditMeasurementBtn = document.getElementById(
+    "profile-edit-measurement-btn"
+  );
+  const profileMeasurementManualConfirmChangeBtn = document.getElementById(
+    "profile-measurement-manual-confirm-change-btn"
+  );
+
+  //measurement inputs
+  const shoulderInput = document.getElementById("shoulder-input");
+  const chestInput = document.getElementById("chest-input");
+  const hipInput = document.getElementById("hip-input");
+  const waistInput = document.getElementById("waist-input");
+  const torsoInput = document.getElementById("torso-input");
+  const armInput = document.getElementById("arm-input");
+  const legInput = document.getElementById("leg-input");
+  const thighInput = document.getElementById("thigh-input");
+
+  return {
+    overlay,
+    mainContent,
+    openButton,
+    onboardWelcome,
+    onboardUserInput,
+    onboardCameraPrompt,
+    onboardCameraGuidelines,
+    onboardCameraPosition,
+    recommendationContent,
+    CameraScan,
+    userDetailForm,
+    onboardWelcomeNext,
+    onboardUserInputNext,
+    onboardCameraPromptNext,
+    onboardCameraPromptManual,
+    onboardCameraGuidelinesNext,
+    onboardCameraPositionNext,
+    CameraScanNext,
+    genderInput,
+    heightInput,
+    weightInput,
+    ageInput,
+    sizingCardContainer,
+    screenFit,
+    screenProfile,
+    screenProfileMeasurementDetails,
+    screenProfileMeasurementEdit,
+    userMeasurementForm,
+    tabFitBtn,
+    tabProfileBtn,
+    profileEditMeasurementBtn,
+    profileMeasurementManualConfirmChangeBtn,
+    shoulderInput,
+    chestInput,
+    hipInput,
+    waistInput,
+    torsoInput,
+    armInput,
+    legInput,
+    thighInput,
+  };
+}

@@ -45,15 +45,15 @@
                     </div>
                     <div>
                         <label>Height (cm) (required)</label>
-                        <input type="number" id="height-input" name="height" required>
+                        <input type="number" id="height-input" name="height" required value="170">
                     </div>
                     <div>
                         <label>Weight (kg) (required)</label>
-                        <input type="number" id="weight-input" name="weight" required>
+                        <input type="number" id="weight-input" name="weight" required value="70">
                     </div>
                     <div>
                         <label>Age</label>
-                        <input type="number" id="age-input" name="age">
+                        <input type="number" id="age-input" name="age" value="30">
                     </div>
                 </form>
 
@@ -91,7 +91,15 @@
                 <button id="onboard-camera-position-next" class="btn btn-primary">
                     <p class="btn-primary__text">Start Scan</p>
                 </button>
+            </div>          
+            <div id="CameraScan" class="onboard-camera-guidelines hidden">
+                <h1>Camera-Scan Front</h1>
+                
+                <button id="CameraScan-next" class="btn btn-primary">
+                    <p class="btn-primary__text">Next</p>
+                </button>
             </div>
+  
             <div id="recommendation-content" class="recommendation-content hidden">
                 <nav class="modal-tabs">
                     <button id="tab-fit-btn" class="tab-button active">My Fit</button>
