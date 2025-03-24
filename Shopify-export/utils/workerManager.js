@@ -63,4 +63,21 @@ function classifyFrame(width, height, buffer) {
   });
 }
 
-export { loadModel, classifyFrame };
+async function collapsePose(canvas) {
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  const { width, height } = canvas;
+  // Get the raw RGBA pixel data from the canvas
+  const imageData = ctx.getImageData(0, 0, width, height);
+
+  const result = await classifyFrame(width, height, imageData.data.buffer);
+  if (!result || !result.className) {
+    console.error("Worker classification failed, or no result");
+    return { poseName: null, poseConfidence: 0 };
+  }
+  return {
+    poseName: result.className,
+    poseConfidence: result.probability,
+  };
+}
+
+export { loadModel, classifyFrame, collapsePose };
