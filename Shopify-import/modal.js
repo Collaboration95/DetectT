@@ -64,7 +64,6 @@ document.addEventListener("DOMContentLoaded", () => {
     thighInput,
   } = elements;
 
-  /*-------------------SETUPS------------------*/
   // 1. Grab references to all your elements
   // -- NEW: Append overlay to <body> so it's not nested in a limiting container --
   document.body.appendChild(overlay);
@@ -83,61 +82,6 @@ document.addEventListener("DOMContentLoaded", () => {
     waist,
     torso,
     thigh,
-  };
-
-  //helper functions
-
-  const saveProfileMeasurementDetails = (
-    measurementInputArray,
-    measurementForm
-  ) => {
-    if (!Array.isArray(measurementInputArray)) {
-      console.error(
-        "Invalid measurementInputArray provided. Expected an array."
-      );
-      return;
-    }
-
-    console.log("Saving Profile Measurements...");
-
-    measurementInputArray.forEach((inputEle) => {
-      try {
-        if (!inputEle || !inputEle.name) {
-          throw new Error("Input element missing or has no name attribute");
-        }
-
-        const value = inputEle.value;
-        if (value === "" || value === undefined) {
-          console.warn(`Empty value for input with name "${inputEle.name}"`);
-          return;
-        }
-
-        // If the key exists in userInfo, assign the value.
-        if (inputEle.name in userInfo) {
-          userInfo[inputEle.name] = inputEle.value;
-        } else {
-          console.error(`Unknown input name: ${inputEle.name}`);
-        }
-      } catch (error) {
-        console.error("Error processing input element:", error, inputEle);
-      }
-    });
-    console.log("Profile Measurements saved: ", userDetailArray);
-  };
-
-  const saveOnboardingUserDetails = (userDetailArray, form) => {
-    // Check if the form is valid
-    if (!form.checkValidity()) {
-      // This will show native validation messages
-      form.reportValidity();
-      console.error("Form is invalid. Please correct the errors.");
-      return; // Stop processing if the form is invalid
-    }
-
-    console.log("User details saved:");
-    userDetailArray.forEach((ele) => {
-      console.log(ele.value);
-    });
   };
 
   // 4. Event handlers: open/close the modal
@@ -162,53 +106,21 @@ document.addEventListener("DOMContentLoaded", () => {
     onboardCameraPositionNext,
     CameraScanNext,
   ];
-  //EVENTS
 
   //onboarding screen navigating
   //setup listeners to hide and show onboard screens
-  onboardNextBtnsArray.forEach((btn, index) => {
-    if (btn == onboardCameraPositionNext) {
-      btn.addEventListener("click", () => {
-        onboardScreensArray.forEach((screen) => hideElement(screen));
-      });
-    }
-
-    if (btn) {
-      // Ensure button exists
-      if (btn == onboardUserInputNext) {
-        // special rule for form validation
-        btn.addEventListener("click", () => {
-          // Check if the form is valid
-          if (userDetailForm.checkValidity()) {
-            saveOnboardingUserDetails(userDetailArray, userDetailForm);
-            onboardScreensArray.forEach((screen) => hideElement(screen));
-            // Show next screen
-            showElement(onboardScreensArray[index + 1]);
-          } else {
-            // Trigger native validation messages
-            userDetailForm.reportValidity();
-            console.error("Form is invalid. Please correct the errors.");
-          }
-        });
-      } else {
-        btn.addEventListener("click", () => {
-          // Hide all screens
-          onboardScreensArray.forEach((screen) => hideElement(screen));
-
-          // Show next screen
-          showElement(onboardScreensArray[index + 1]);
-        });
-      }
-    }
-
-    if (btn == onboardUserInputNext) {
-    }
-  });
-
   const userDetailArray = [genderInput, heightInput, weightInput, ageInput];
+
+  setupOnboardingNavigation(
+    onboardScreensArray,
+    onboardNextBtnsArray,
+    userDetailForm,
+    userDetailArray
+  );
+
   //Grab References to pose figure
   //ask tristan and lucas
-
+  // guru: need to delete this , ask @ck
   const recommendationScreenArray = [
     screenFit,
     screenProfile,
@@ -223,6 +135,17 @@ document.addEventListener("DOMContentLoaded", () => {
     profileMeasurementManualConfirmChangeBtn,
   ];
 
+  // Package the extra elements into an object for clarity
+  const extraElements = {
+    tabFitBtn,
+    tabProfileBtn,
+    profileEditMeasurementBtn,
+    profileMeasurementManualConfirmChangeBtn,
+    screenFit,
+    screenProfile,
+    screenProfileMeasurementDetails,
+    screenProfileMeasurementEdit,
+  };
   const measurementInputArray = [
     shoulderInput,
     chestInput,
@@ -233,67 +156,15 @@ document.addEventListener("DOMContentLoaded", () => {
     legInput,
     thighInput,
   ];
-
-  recommendationScreenBtn.forEach((btn, index) => {
-    switch (btn) {
-      case tabFitBtn:
-        btn.addEventListener("click", () => {
-          showElement(screenFit);
-          hideElement(screenProfile);
-          hideElement(screenProfileMeasurementDetails);
-          hideElement(screenProfileMeasurementEdit);
-
-          tabFitBtn.classList.add("active");
-          tabProfileBtn.classList.remove("active");
-        });
-
-        break;
-
-      case tabProfileBtn:
-        btn.addEventListener("click", () => {
-          showElement(screenProfile);
-          showElement(screenProfileMeasurementDetails);
-          hideElement(screenFit);
-          hideElement(screenProfileMeasurementEdit);
-
-          tabProfileBtn.classList.add("active");
-          tabFitBtn.classList.remove("active");
-        });
-
-        break;
-
-      case profileEditMeasurementBtn:
-        btn.addEventListener("click", () => {
-          showElement(screenProfile);
-          hideElement(screenFit);
-          hideElement(screenProfileMeasurementDetails);
-          showElement(screenProfileMeasurementEdit);
-        });
-        break;
-
-      case profileMeasurementManualConfirmChangeBtn:
-        btn.addEventListener("click", () => {
-          // Check if the form is valid
-          // Check if the form is valid
-          if (userMeasurementForm.checkValidity()) {
-            saveProfileMeasurementDetails(
-              measurementInputArray,
-              userMeasurementForm
-            );
-            showElement(screenProfile);
-            showElement(screenProfileMeasurementDetails);
-
-            hideElement(screenFit);
-            hideElement(screenProfileMeasurementEdit);
-          } else {
-            // Trigger native validation messages
-            userMeasurementForm.reportValidity();
-            console.error("Form is invalid. Please correct the errors.");
-          }
-        });
-        break;
-    }
-  });
+  // Call the setup function with the user measurement form and input array as well
+  setupRecommendationNavigation(
+    recommendationScreenBtn,
+    extraElements,
+    userMeasurementForm,
+    measurementInputArray,
+    userInfo, // only to pass values to saveProfileMeasurementDetails
+    userDetailArray // only to pass values to saveProfileMeasurementDetails
+  );
 
   //My Profile
   //Interactivity of svg and measurement card in myprofile tab
@@ -473,3 +344,154 @@ function setupModalOpenClose(openButton, overlay) {
     }
   });
 }
+
+function setupOnboardingNavigation(
+  screens,
+  nextBtns,
+  userDetailForm,
+  userDetailArray
+) {
+  nextBtns.forEach((btn, index) => {
+    if (!btn) return;
+    // Special handling for the user input screen with validation
+    if (
+      btn === nextBtns[1]
+      // onboardUserInputNext
+    ) {
+      btn.addEventListener("click", () => {
+        if (userDetailForm.checkValidity()) {
+          saveOnboardingUserDetails(userDetailArray, userDetailForm);
+          screens.forEach((screen) => hideElement(screen));
+          showElement(screens[index + 1]);
+        } else {
+          userDetailForm.reportValidity();
+          console.error("Form is invalid. Please correct the errors.");
+        }
+      });
+    } else {
+      btn.addEventListener("click", () => {
+        screens.forEach((screen) => hideElement(screen));
+        showElement(screens[index + 1]);
+      });
+    }
+  });
+}
+
+function saveOnboardingUserDetails(userDetailArray, form) {
+  if (!form.checkValidity()) {
+    form.reportValidity();
+    console.error("Form is invalid. Please correct the errors.");
+    return;
+  }
+  console.log("User details saved:");
+  userDetailArray.forEach((ele) => {
+    console.log(ele.value);
+  });
+}
+
+function setupRecommendationNavigation(
+  buttons,
+  extraElements,
+  userMeasurementForm,
+  measurementInputArray,
+  userInfo,
+  userDetailArray
+) {
+  const {
+    tabFitBtn,
+    tabProfileBtn,
+    profileEditMeasurementBtn,
+    profileMeasurementManualConfirmChangeBtn,
+    screenFit,
+    screenProfile,
+    screenProfileMeasurementDetails,
+    screenProfileMeasurementEdit,
+  } = extraElements;
+
+  buttons.forEach((btn) => {
+    if (btn === tabFitBtn) {
+      btn.addEventListener("click", () => {
+        showElement(screenFit);
+        hideElement(screenProfile);
+        hideElement(screenProfileMeasurementDetails);
+        hideElement(screenProfileMeasurementEdit);
+        tabFitBtn.classList.add("active");
+        tabProfileBtn.classList.remove("active");
+      });
+    } else if (btn === tabProfileBtn) {
+      btn.addEventListener("click", () => {
+        showElement(screenProfile);
+        showElement(screenProfileMeasurementDetails);
+        hideElement(screenFit);
+        hideElement(screenProfileMeasurementEdit);
+        tabProfileBtn.classList.add("active");
+        tabFitBtn.classList.remove("active");
+      });
+    } else if (btn === profileEditMeasurementBtn) {
+      btn.addEventListener("click", () => {
+        showElement(screenProfile);
+        hideElement(screenFit);
+        hideElement(screenProfileMeasurementDetails);
+        showElement(screenProfileMeasurementEdit);
+      });
+    } else if (btn === profileMeasurementManualConfirmChangeBtn) {
+      btn.addEventListener("click", () => {
+        // Check if the form is valid before proceeding
+        if (userMeasurementForm.checkValidity()) {
+          saveProfileMeasurementDetails(
+            measurementInputArray,
+            userMeasurementForm,
+            userInfo,
+            userDetailArray
+          );
+          showElement(screenProfile);
+          showElement(screenProfileMeasurementDetails);
+          hideElement(screenFit);
+          hideElement(screenProfileMeasurementEdit);
+        } else {
+          userMeasurementForm.reportValidity();
+          console.error("Form is invalid. Please correct the errors.");
+        }
+      });
+    }
+  });
+}
+
+// Defined outside DOMContentLoaded
+const saveProfileMeasurementDetails = (
+  measurementInputArray,
+  measurementForm,
+  userInfo,
+  userDetailArray
+) => {
+  if (!Array.isArray(measurementInputArray)) {
+    console.error("Invalid measurementInputArray provided. Expected an array.");
+    return;
+  }
+
+  console.log("Saving Profile Measurements...");
+
+  measurementInputArray.forEach((inputEle) => {
+    try {
+      if (!inputEle || !inputEle.name) {
+        throw new Error("Input element missing or has no name attribute");
+      }
+
+      const value = inputEle.value;
+      if (value === "" || value === undefined) {
+        console.warn(`Empty value for input with name "${inputEle.name}"`);
+        return;
+      }
+
+      // If the key exists in userInfo, assign the value.
+      if (inputEle.name in userInfo) {
+        userInfo[inputEle.name] = inputEle.value;
+      } else {
+        console.error(`Unknown input name: ${inputEle.name}`);
+      }
+    } catch (error) {
+      console.error("Error processing input element:", error, inputEle);
+    }
+  });
+  console.log("Profile Measurements saved: ", userDetailArray);
+};
