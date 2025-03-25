@@ -96,12 +96,25 @@
                     <p class="btn-primary__text">Start Scan</p>
                 </button>
             </div>          
-            <div id="CameraScan" class="onboard-camera-guidelines hidden">
+            <!-- Need to fix the class reference here  -->
+            <div id="CameraScan" class="hidden">
                 <h1>Camera-Scan Front</h1>
-                
-                <button id="CameraScan-next" class="btn btn-primary">
+                <div class="camera-container">
+                    <p id="user-feedback"></p>
+                    <div id="camera-display-format">
+                      <video id="camera-preview" autoplay playsinline></video>
+                      
+                      <canvas id="camera-output" style="display: none"></canvas>
+                      <img
+                        id="expected-silhouette"
+                        src="./assets/front.png"
+                        alt="Expected Outline"
+                      />
+                    </div> 
+                  </div>
+                    <!-- <button id="CameraScan-next" class="btn btn-primary">
                     <p class="btn-primary__text">Next</p>
-                </button>
+                </button> -->
             </div>
   
             <div id="recommendation-content" class="recommendation-content hidden">

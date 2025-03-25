@@ -405,11 +405,60 @@ h5 {
   stroke-width: 2 !important;
 }
 
-.empty-card {
-  border: 1px solid #ccc;
-  padding: 20px;
-  margin: 20px 0;
-  border-radius: 8px;
+/* camera scan code */
+
+#user-feedback {
+  font-size: 50px;
+}
+
+.camera-container {
   text-align: center;
-  background-color: #f9f9f9;
+  position: relative;
+}
+
+#user-feedback {
+  font-size: 50px;
+}
+#camera-preview {
+  display: block; /* ensures the video is on its own line */
+  width: 100%; /* fill the container's width */
+  border: 2px solid #ddd;
+  transform: scaleX(-1); /* mirror effect if desired */
+  margin-left: auto; /* center horizontally */
+  margin-right: auto; /* center horizontally */
+}
+
+#camera-output {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  pointer-events: none; /* so clicks pass through to the video */
+  display: block; /* show the canvas (remove 'display: none') */
+}
+
+#expected-silhouette {
+  position: absolute; /* Place the image within #camera-display-format */
+  top: 50%; /* Center it vertically */
+  left: 50%; /* Center it horizontally */
+  transform: translate(-50%, -50%);
+  /* width: 80%; Or 100%, or match your video’s size, etc. */
+  /* height: 60%; */
+  width: auto;
+  height: 80%;
+  opacity: 0;
+  pointer-events: none; /* Don’t block clicks on the video */
+  z-index: 12; /* Ensure it’s on top of the video/canvas */
+}
+
+#camera-display-format {
+  position: relative;
+  display: inline-block; /* or block, depending on your layout */
+  width: 100%;
+  height: auto;
+
+  /* If you want it responsive to the parent, you could do width: 100%; */
+  /* If you prefer to shrink-wrap exactly to the video's size, use inline-block. */
 }
