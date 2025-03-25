@@ -10,6 +10,8 @@
     <script src="https://www.gstatic.com/firebasejs/11.3.1/firebase-analytics-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/11.3.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/11.3.1/firebase-storage-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.9.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
   </head>
   <body id="fitback-recommendation">
     <div id="modal-overlay" class="modal-overlay hidden">
@@ -104,7 +106,7 @@
                     <div id="camera-display-format">
                       <video id="camera-preview" autoplay playsinline></video>
                       
-                      <canvas id="camera-output" style="display: none"></canvas>
+                      <canvas id="camera-output" ></canvas>
                       <img
                         id="expected-silhouette"
                         src="./assets/front.png"

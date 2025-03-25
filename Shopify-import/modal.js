@@ -1,9 +1,14 @@
 // cameraScan Functionality
+import { drawSkeleton } from "./utils/drawUtils.js";
 import { initFirebase, uploadToFirebase } from "./utils/firebaseUtils.js";
 import { firebaseConfig, TM_URL } from "./utils/env.js";
-// initFirebase(firebaseConfig);
-//array to store screen id
+import {
+  loadModel,
+  classifyFrame,
+  collapsePose,
+} from "./utils/workerManager.js";
 
+import { initializePoseDetector, estimatePoses } from "./utils/poseDetector.js";
 //variable storage for user
 // Declare variables at the top of your script
 let gender = "";
@@ -22,6 +27,8 @@ let thigh = 0;
 document.addEventListener("DOMContentLoaded", () => {
   const elements = initializeElements();
   const {
+    canvas,
+    video,
     overlay,
     mainContent,
     openButton,
@@ -111,11 +118,56 @@ document.addEventListener("DOMContentLoaded", () => {
   //setup listeners to hide and show onboard screens
   const userDetailArray = [genderInput, heightInput, weightInput, ageInput];
 
+  const cameraController = {
+    isActive: false,
+    stream: null,
+    async startCamera() {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        isDetecting = true;
+        video.srcObject = stream;
+        video.play();
+        video.style.display = "block";
+        video.onloadeddata = () => {
+          console.log("Video loaded, starting pose detection...");
+          // TODO : convert this to a function to initialize the silhoutte
+          const silhouette = document.getElementById("expected-silhouette");
+          silhouette.style.height = video.offsetHeight * 0.95 + "px";
+
+          console.log("Canvas buffer:", canvas.width, canvas.height);
+          console.log("Canvas style:", canvas.style.width, canvas.style.height);
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          startPoseDetection();
+        };
+      } catch (error) {
+        console.error("Error starting camera:", error);
+      }
+    },
+    deactivateCamera() {
+      console.log("Deactivating camera... outer loop");
+
+      if (video.srcObject) {
+        video.srcObject.getTracks().forEach((track) => track.stop());
+        video.srcObject = null;
+      }
+      isDetecting = false;
+      isReady = false;
+    },
+    DisplayFeedback(message) {
+      userFeedback.innerHTML = message;
+    },
+    getVideoElement() {
+      return video;
+    },
+  };
+
   setupOnboardingNavigation(
     onboardScreensArray,
     onboardNextBtnsArray,
     userDetailForm,
-    userDetailArray
+    userDetailArray,
+    cameraController
   );
 
   //Grab References to pose figure
@@ -157,6 +209,7 @@ document.addEventListener("DOMContentLoaded", () => {
     thighInput,
   ];
   // Call the setup function with the user measurement form and input array as well
+
   setupRecommendationNavigation(
     recommendationScreenBtn,
     extraElements,
@@ -250,7 +303,303 @@ document.addEventListener("DOMContentLoaded", () => {
   updateActiveSlide();
 
   // CameraScan Code
+  // tag asdf
+  // initFirebase(firebaseConfig);
+
+  // loadModel(TM_URL + "model.json", TM_URL + "metadata.json");
+
+  let stream;
+  let detector;
+  let isDetecting = false;
+  let isReady = false;
+
+  async function startPoseDetection() {
+    if (!detector) {
+      detector = await initializePoseDetector();
+    }
+    isReady = true;
+    requestAnimationFrame(detectPose);
+  }
+
+  const THROTTLE_DELAY = 120; // ms
+  let lastTime = 0;
+
+  async function detectPose(timestamp) {
+    if (!isDetecting) return;
+
+    // Wait for video readiness
+    if (!isReady || !video || video.readyState < 2) {
+      requestAnimationFrame(detectPose);
+      return;
+    }
+
+    // Throttle
+    if (timestamp - lastTime < THROTTLE_DELAY) {
+      requestAnimationFrame(detectPose);
+      return;
+    }
+    lastTime = timestamp;
+
+    try {
+      const poses = await estimatePoses(detector, video);
+      drawPose(canvas, video, poses);
+    } catch (error) {
+      console.error("Error in pose estimation:", error);
+    }
+
+    requestAnimationFrame(detectPose);
+  }
+
+  function drawPose(canvas, video, poses) {
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+    // Mirror the canvas so it looks more natural
+    ctx.save();
+    ctx.scale(-1, 1);
+    ctx.translate(-canvas.width, 0);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    // ctx.clearRect(0, 0, canvas.width, canvas.height); // ← Problem is here!
+    ctx.restore();
+    video.display = "none";
+    poses.forEach((pose) => {
+      drawSkeleton(pose, ctx, video);
+      // analysePose(pose, ctx);
+    });
+  }
+
+  // //need to fix this shitd
+  // window.addEventListener("resize", () => {
+  //   if (!video) return;
+  //   let vidHeight = video.offsetHeight;
+  //   if (silhouette) {
+  //     silhouette.style.height = vidHeight * 0.95 + "px";
+  //   }
+  // });
+
+  // // Main finite state machine for pose detection
+  // const analysisState = {
+  //   state: "start",
+  //   validSince: null,
+  //   lastFeedback: "",
+  //   imageBlobArray: [],
+  //   photosTaken: 0,
+  //   uploadInProgress: false,
+  // };
+  // const REQUIRED_TIME = 3000;
+  // let isClassifying = false;
+
+  // async function analysePose(pose, ctx) {
+  //   const importantPoints = ["left_shoulder", "right_shoulder"];
+  //   const filteredKeypoints = pose.keypoints.filter((kp) =>
+  //     importantPoints.includes(kp.name)
+  //   );
+
+  //   const horizontalPadding = 5;
+  //   const verticalPadding = 5;
+  //   const left = horizontalPadding;
+  //   const right = ctx.canvas.width - horizontalPadding;
+  //   const top = verticalPadding;
+  //   const bottom = ctx.canvas.height - verticalPadding;
+
+  //   // Because the canvas is mirrored, x = ctx.canvas.width - kp.x
+  //   const pointsOutsidePadding = filteredKeypoints.filter((kp) => {
+  //     const x = ctx.canvas.width - kp.x;
+  //     const y = kp.y;
+  //     return x < left || x > right || y < top || y > bottom;
+  //   });
+  //   const isInsideFrame = pointsOutsidePadding.length === 0;
+  //   const now = Date.now();
+
+  //   // If we are in “upload_photo” state, just upload to firebase
+  //   if (analysisState.state === "upload_photo") {
+  //     DisplayFeedback("Uploading photos to firebase...");
+  //     updateSilhouette("disable");
+  //     uploadToFirebase(analysisState, (err, results) => {
+  //       if (err) {
+  //         console.error("Upload failed:", err);
+  //       } else {
+  //         console.log("Upload completed, download URLs:", results);
+  //         analysisState.state = "final_state";
+  //         DisplayFeedback("Photo upload completed successfully.");
+  //       }
+  //     });
+  //     return;
+  //   } else if (analysisState.state === "final_state") {
+  //     // Completed
+  //     DisplayFeedback("Measurement Process completed!");
+  //     // Example: auto-switch to Fit tab
+  //     setTimeout(() => {
+  //       tabFitBtn.click();
+  //       console.log("Switched to Fit tab after detection completed");
+  //     }, 1000);
+  //     return;
+  //   }
+
+  //   // If user is out of frame and we are mid-flow
+  //   if (!isInsideFrame && analysisState.state !== "start") {
+  //     if (analysisState.imageBlobArray.length === 0) {
+  //       analysisState.state = "detecting_one";
+  //     } else if (analysisState.imageBlobArray.length === 1) {
+  //       analysisState.state = "detecting_two";
+  //     }
+  //     analysisState.validSince = null;
+  //     const msg = "Please stand inside the frame";
+  //     if (analysisState.lastFeedback !== msg) {
+  //       DisplayFeedback(msg);
+  //       analysisState.lastFeedback = msg;
+  //     }
+  //     return;
+  //   }
+
+  //   // Show the silhouette (30% opacity, front or side)
+  //   updateSilhouette(analysisState.state);
+
+  //   // If inside the frame, increment time. Once we’re steady for REQUIRED_TIME, do a new state action
+  //   if (isInsideFrame) {
+  //     if (!analysisState.validSince) {
+  //       analysisState.validSince = now;
+  //     }
+
+  //     if (now - analysisState.validSince >= REQUIRED_TIME) {
+  //       switch (analysisState.state) {
+  //         case "start":
+  //           console.log("Transitioning to detecting_one");
+  //           analysisState.state = "detecting_one";
+  //           analysisState.validSince = now;
+  //           DisplayFeedback("Detecting your pose...");
+  //           break;
+
+  //         case "detecting_one":
+  //           if (isClassifying) break;
+  //           isClassifying = true;
+  //           const result1 = await collapsePose(canvas);
+  //           if (
+  //             result1.poseName === "Front-view" &&
+  //             result1.poseConfidence > 0.7
+  //           ) {
+  //             DisplayFeedback("Pose Detected, taking photo");
+  //             analysisState.state = "ready_one";
+  //             analysisState.validSince = now;
+  //           } else {
+  //             DisplayFeedback("Please match the silhouette with your body");
+  //             isClassifying = false;
+  //             return;
+  //           }
+  //           isClassifying = false;
+  //           break;
+
+  //         case "ready_one":
+  //           DisplayFeedback("Taking front photo...");
+  //           returnPhotoRef("front", (err, result) => {
+  //             if (err) {
+  //               console.error("Capture Photo method failed", err);
+  //             } else {
+  //               console.log("Saved front image:", result);
+  //               analysisState.imageBlobArray.push(result);
+  //               analysisState.state = "start_2";
+  //               analysisState.validSince = now;
+  //               DisplayFeedback("Please rotate 90° to the right");
+  //             }
+  //           });
+  //           break;
+
+  //         case "start_2":
+  //           analysisState.state = "detecting_two";
+  //           analysisState.validSince = now;
+  //           // We'll rely on the user physically rotating
+  //           break;
+
+  //         case "detecting_two":
+  //           if (isClassifying) break;
+  //           isClassifying = true;
+  //           const result2 = await collapsePose(canvas);
+  //           if (
+  //             result2.poseName === "side-view" &&
+  //             result2.poseConfidence > 0.7
+  //           ) {
+  //             DisplayFeedback("Pose Detected, taking photo");
+  //             analysisState.state = "ready_two";
+  //             analysisState.validSince = now;
+  //           } else {
+  //             DisplayFeedback("Please match the silhouette with your body");
+  //             isClassifying = false;
+  //             return;
+  //           }
+  //           isClassifying = false;
+  //           break;
+
+  //         case "ready_two":
+  //           DisplayFeedback("Taking side photo...");
+  //           returnPhotoRef("side", (err, result) => {
+  //             if (err) {
+  //               console.error("Capture Photo method failed", err);
+  //             } else {
+  //               console.log("Saved side image:", result);
+  //               analysisState.imageBlobArray.push(result);
+  //               analysisState.state = "upload_photo";
+  //               analysisState.validSince = now;
+  //               DisplayFeedback("Ready to upload photos...");
+  //             }
+  //           });
+  //           break;
+
+  //         default:
+  //           // If state is unrecognized, reset to “start”
+  //           analysisState.state = "start";
+  //           analysisState.validSince = now;
+  //           DisplayFeedback("Resetting detection. Please stand still.");
+  //           break;
+  //       }
+  //     } else {
+  //       // Not enough consecutive frames yet
+  //       const msg = "Detection in progress, remain still...";
+  //       if (analysisState.lastFeedback !== msg) {
+  //         DisplayFeedback(msg);
+  //         analysisState.lastFeedback = msg;
+  //       }
+  //     }
+  //   } else {
+  //     // If we are in “start” but not inside the frame
+  //     if (analysisState.state === "start") {
+  //       const msg = "Please match the silhouette with your body";
+  //       if (analysisState.lastFeedback !== msg) {
+  //         DisplayFeedback(msg);
+  //         analysisState.lastFeedback = msg;
+  //       }
+  //     }
+  //   }
+  // }
 });
+
+function returnPhotoRef(url_modifier, callback) {
+  console.log("Capturing photo for", url_modifier);
+  const tempCanvas = document.createElement("canvas");
+  tempCanvas.width = video.videoWidth;
+  tempCanvas.height = video.videoHeight;
+
+  const ctx = tempCanvas.getContext("2d", { willReadFrequently: true });
+  ctx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
+
+  const now = new Date();
+  const timestamp = now.toISOString().replace(/[:.]/g, "-");
+  const filename = `${url_modifier}_${timestamp}.jpg`;
+
+  tempCanvas.toBlob(
+    (blob) => {
+      if (!blob) {
+        console.error("Failed to capture image as Blob.");
+        if (callback) callback(new Error("Failed to create Blob"), null);
+        return;
+      }
+      console.log("Photo captured:", filename);
+      if (callback) {
+        callback(null, { filename, blob });
+      }
+    },
+    "image/jpeg",
+    0.99
+  );
+}
 
 // UI helper functions
 const showElement = (ele) => {
@@ -265,6 +614,8 @@ const hideElement = (ele) => {
 
 function initializeElements() {
   return {
+    canvas: document.getElementById("camera-output"),
+    video: document.getElementById("camera-preview"),
     overlay: document.getElementById("modal-overlay"),
     mainContent: document.getElementById("modal-content"),
     openButton: document.getElementById("open-modal"),
@@ -349,7 +700,8 @@ function setupOnboardingNavigation(
   screens,
   nextBtns,
   userDetailForm,
-  userDetailArray
+  userDetailArray,
+  cameraController
 ) {
   nextBtns.forEach((btn, index) => {
     if (!btn) return;
@@ -367,6 +719,17 @@ function setupOnboardingNavigation(
           userDetailForm.reportValidity();
           console.error("Form is invalid. Please correct the errors.");
         }
+      });
+    } else if (btn === nextBtns[4]) {
+      btn.addEventListener("click", () => {
+        screens.forEach((screen) => hideElement(screen));
+        showElement(screens[index + 1]);
+        cameraController.startCamera();
+      });
+    } else if (btn === nextBtns[5]) {
+      btn.addEventListener("click", () => {
+        screens.forEach((screen) => hideElement(screen));
+        showElement(screens[index + 1]);
       });
     } else {
       btn.addEventListener("click", () => {
