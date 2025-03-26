@@ -23,6 +23,12 @@ export function initFirebase(firebaseConfig) {
   });
 }
 export function uploadToFirebase(analysisState, callback) {
+  // Check if Firebase has been initialized
+  try {
+    firebase.app();
+  } catch (error) {
+    return callback(new Error("Firebase has not been initialized"), null);
+  }
   const user = firebase.auth().currentUser;
   if (!user) {
     return callback(new Error("User is not authenticated"), null);
